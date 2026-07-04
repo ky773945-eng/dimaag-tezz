@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🔴 Simon Says · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:#ff9500">🔴 SIMON SAYS</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card">
+    <span class="ld-emoji" id="ld-emoji">🏆</span>
+    <div class="stars-row" id="ld-stars">⭐⭐⭐</div>
+    <div class="ld-title" id="ld-title">Level Complete!</div>
+    <div class="ld-stats" id="ld-stats"></div>
+    <div class="ld-btns">
+      <button class="ld-btn p" id="ld-next-btn">Next Level →</button>
+      <a class="ld-btn s" href="levels.html?game=simon">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card">
+    <div style="font-size:3.5rem;margin-bottom:10px">💔</div>
+    <div class="lf-title" id="lf-title">Level Failed!</div>
+    <div class="lf-sub" id="lf-sub">Phir se koshish karo!</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div>
+    <div class="lf-btns">
+      <button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button>
+      <a class="lf-btn home" href="levels.html?game=simon">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ===== SIMON SAYS LOGIC =====
+function genSimonTask(lv){
+  const seqLen=Math.min(3+Math.floor(lv/8),15);
+  const seq=Array.from({length:seqLen},()=>rnd(0,3));
+  return{seq};
+}
+function genTasks(lv){const t=[];for(let i=0;i<10;i++)t.push(genSimonTask(lv));return t;}
+
+let simonSeq=[],simonInput=[],simonPlaying=false;
+const SBCOLORS=['#ff1744','#00e676','#00e5ff','#ffd700'];
+const SBFREQ=[262,330,392,523];
+
+function loadTask(){
+  CG.answered=false;
+  const task=CG.tasks[CG.task];
+  updSubtitle();
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;
+  updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const msg=document.createElement('div');msg.id='simon-msg';msg.style.cssText='text-align:center;font-family:"Orbitron",sans-serif;font-size:.85rem;color:var(--c2);padding:8px 14px;background:var(--card);border-radius:12px;border:1px solid var(--border);margin:10px 14px;';
+  msg.textContent='देखो और याद करो! / Watch and remember!';qa.appendChild(msg);
+  const info=document.createElement('div');info.style.cssText='text-align:center;font-family:"Rajdhani",sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:8px;';
+  info.textContent=`Sequence length: ${task.seq.length}`;qa.appendChild(info);
+  const grid=document.createElement('div');grid.className='simon-g';
+  SBCOLORS.forEach((col,i)=>{const b=document.createElement('div');b.className='sb';b.style.background=col;b.id='sb'+i;b.onclick=()=>simonPress(i,task);grid.appendChild(b);});
+  qa.appendChild(grid);
+
+  simonSeq=task.seq;simonInput=[];simonPlaying=true;
+  document.querySelectorAll('.sb').forEach(b=>b.style.pointerEvents='none');
+  setTimeout(()=>playSimon(0),800);
+}
+
+function playSimon(i){
+  if(i>=simonSeq.length){simonPlaying=false;document.querySelectorAll('.sb').forEach(b=>b.style.pointerEvents='auto');const m=document.getElementById('simon-msg');if(m)m.textContent='अब तुम्हारी बारी! / Your turn!';return;}
+  const idx=simonSeq[i];const btn=document.getElementById('sb'+idx);if(!btn)return;
+  setTimeout(()=>{
+    btn.classList.add('glow');
+    try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);o.frequency.value=SBFREQ[idx];g.gain.setValueAtTime(.2,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.4);o.start();o.stop(AC.currentTime+.4);}catch(e){}
+    setTimeout(()=>{btn.classList.remove('glow');setTimeout(()=>playSimon(i+1),200);},500);
+  },i===0?200:600*i);
+}
+
+function simonPress(idx,task){
+  if(simonPlaying||CG.answered)return;
+  simonInput.push(idx);
+  const btn=document.getElementById('sb'+idx);
+  if(btn){btn.classList.add('glow');setTimeout(()=>btn.classList.remove('glow'),300);}
+  try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);o.frequency.value=SBFREQ[idx];g.gain.setValueAtTime(.18,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.3);o.start();o.stop(AC.currentTime+.3);}catch(e){}
+
+  const pos=simonInput.length-1;
+  if(simonInput[pos]!==simonSeq[pos]){
+    const m=document.getElementById('simon-msg');if(m)m.textContent='❌ Galat!';
+    document.querySelectorAll('.sb').forEach(b=>b.style.pointerEvents='none');
+    setTimeout(()=>{
+      checkAnswer(false,null,null,'Simon sequence galat',nextTask);
+    },500);
+    return;
+  }
+  if(simonInput.length===simonSeq.length){
+    const m=document.getElementById('simon-msg');if(m)m.textContent='✅ Sahi!';
+    document.querySelectorAll('.sb').forEach(b=>b.style.pointerEvents='none');
+    setTimeout(()=>{
+      checkAnswer(true,null,null,'Simon complete!',nextTask);
+    },500);
+  }
+}
+
+function nextTask(){
+  CG.task++;
+  if(CG.task>=10){levelComplete();return;}
+  loadTask();
+}
+
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('simon',level);
+CG.tasks=genTasks(level);
+buildTaskDots();
+loadTask();
+</script>
+</body>
+</html>

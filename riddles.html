@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🧩 Riddles · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.type-input-wrap{display:flex;gap:8px;margin-bottom:8px;}
+.type-input{flex:1;background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;font-family:'Baloo 2',cursive;font-size:1.1rem;color:var(--text);text-align:center;}
+.type-input:focus{outline:none;border-color:var(--c4);}
+.type-submit{background:linear-gradient(135deg,var(--c4),#7b1fa2);border:none;border-radius:12px;padding:14px 22px;font-family:'Orbitron',sans-serif;font-weight:700;color:#fff;cursor:pointer;font-size:.9rem;}
+.riddle-text{font-size:1rem;line-height:1.7;color:var(--text);}
+.riddle-text small{display:block;font-size:.75rem;color:var(--muted);font-family:'Rajdhani',sans-serif;margin-top:6px;}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c4)">🧩 RIDDLES</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="tmr-wrap"><div class="tmr-track"><div class="tmr-fill" id="tmr-fill" style="width:100%"></div></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card">
+    <span class="ld-emoji" id="ld-emoji">🏆</span>
+    <div class="stars-row" id="ld-stars">⭐⭐⭐</div>
+    <div class="ld-title" id="ld-title">Level Complete!</div>
+    <div class="ld-stats" id="ld-stats"></div>
+    <div class="ld-btns">
+      <button class="ld-btn p" id="ld-next-btn">Next Level →</button>
+      <a class="ld-btn s" href="levels.html?game=riddles">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card">
+    <div style="font-size:3.5rem;margin-bottom:10px">💔</div>
+    <div class="lf-title" id="lf-title">Level Failed!</div>
+    <div class="lf-sub" id="lf-sub">Phir se koshish karo!</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div>
+    <div class="lf-btns">
+      <button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button>
+      <a class="lf-btn home" href="levels.html?game=riddles">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ===== RIDDLES BANK =====
+// Each riddle: hi/en text, type: 'mcq' or 'type', ans, opts(for mcq), hint, diffLevel (1-5 matching zones)
+const RIDDLE_BANK=[
+  // ===== ZONE 1 (Easy, Level 1-20) - Simple logic & word riddles =====
+  {hi:'एक आदमी के पास 6 भेड़ें हैं, सभी मर गईं सिवाय 4 के। कितनी भेड़ें बची?',en:'A man has 6 sheep, all but 4 died. How many are left?',type:'type',ans:'4',hint:'"सिवाय 4 के" को ध्यान से पढ़ो',zone:1},
+  {hi:'सुबह 4 पाँव, दोपहर 2 पाँव, शाम 3 पाँव — यह क्या है?',en:'4 legs in morning, 2 in afternoon, 3 in evening?',type:'mcq',ans:'इंसान',opts:['इंसान','कुर्सी','कुत्ता','घोड़ा'],hint:'बचपन-जवानी-बुढ़ापा',zone:1},
+  {hi:'अगर 2 संतरे 6 रुपये के हैं, तो 1 दर्जन संतरे का दाम क्या होगा?',en:'If 2 oranges cost ₹6, what is the cost of 1 dozen?',type:'type',ans:'36',hint:'1 संतरा = 3 रुपये, दर्जन = 12',zone:1},
+  {hi:'मेरे पास कोई आवाज़ नहीं, फिर भी मैं बोलता हूँ। मैं क्या हूँ?',en:'I speak without a mouth. What am I?',type:'mcq',ans:'गूँज',opts:['गूँज','किताब','रेडियो','हवा'],hint:'पहाड़ों में सुनाई देती है',zone:1},
+  {hi:'राम की उम्र श्याम से दुगुनी है। 5 साल बाद राम की उम्र श्याम से 1.5 गुना होगी। श्याम की अभी उम्र क्या है?',en:'Ram is twice as old as Shyam. After 5 years Ram will be 1.5x. Find Shyam\'s age now.',type:'type',ans:'10',hint:'समीकरण बनाओ: 2x+5=1.5(x+5)',zone:1},
+  {hi:'एक टोकरी में 5 सेब हैं। 5 बच्चों को एक-एक सेब दो, फिर भी टोकरी में 1 सेब बचे। कैसे?',en:'5 apples, give each of 5 kids one apple, basket still has 1 apple left. How?',type:'mcq',ans:'आख़िरी बच्चे को टोकरी के साथ सेब दिया',opts:['आख़िरी बच्चे को टोकरी के साथ सेब दिया','एक सेब छोटा था','गलत गिनती','कोई नहीं खाया'],hint:'टोकरी समेत दे दो',zone:1},
+  {hi:'क्या भारी है — 1 किलो रुई या 1 किलो लोहा?',en:'What is heavier — 1kg cotton or 1kg iron?',type:'mcq',ans:'दोनों बराबर',opts:['रुई','लोहा','दोनों बराबर','पता नहीं'],hint:'वज़न का यूनिट एक जैसा है',zone:1},
+  {hi:'मेरे पास शहर हैं पर घर नहीं, जंगल हैं पर पेड़ नहीं, पानी है पर मछली नहीं। मैं क्या हूँ?',en:'I have cities, no houses; forests, no trees; water, no fish.',type:'mcq',ans:'नक्शा (Map)',opts:['नक्शा (Map)','फ़ोटो','किताब','टीवी'],hint:'इसे देखकर रास्ता ढूंढते हैं',zone:1},
+  {hi:'अगर आज सोमवार है, तो 100 दिन बाद कौन सा दिन होगा?',en:'If today is Monday, what day will it be after 100 days?',type:'mcq',ans:'बुधवार',opts:['मंगलवार','बुधवार','गुरुवार','शुक्रवार'],hint:'100 ÷ 7 = 14 हफ़्ते + 2 दिन',zone:1},
+  {hi:'एक थैले में 3 लाल और 2 नीली गेंदें हैं। बिना देखे 2 गेंदें निकालो ताकि दोनों एक रंग की हों — कम से कम कितनी बार निकालनी होंगी पक्का होने के लिए?',en:'Bag has 3 red, 2 blue balls. Minimum draws to guarantee 2 same color?',type:'type',ans:'3',hint:'Pigeonhole principle',zone:1},
+
+  // ===== ZONE 2 (Normal, Level 21-40) =====
+  {hi:'एक नदी के किनारे 3 चोर और 3 पुलिस वाले हैं। एक नाव में सिर्फ 2 लोग बैठ सकते हैं। अगर किसी किनारे पर चोर पुलिस से ज़्यादा हो गए तो चोर पुलिस को मार देंगे। सबको नदी पार करना है। कम से कम कितनी बार नाव चलानी होगी?',en:'3 thieves, 3 police at a river. Boat holds 2. Thieves can\'t outnumber police on either side. Minimum boat trips?',type:'type',ans:'11',hint:'हर trip में संतुलन बनाना ज़रूरी है',zone:2},
+  {hi:'एक आदमी के पास भेड़िया, भेड़ और घास है। नाव में सिर्फ वो और एक चीज़ जा सकती है। भेड़िया भेड़ को खा जाएगा, भेड़ घास खा जाएगी (अगर अकेले छोड़े)। सबको पार कैसे ले जाए?',en:'Man has wolf, sheep, grass. Boat carries him + 1 item. Wolf eats sheep, sheep eats grass if left alone.',type:'mcq',ans:'पहले भेड़ ले जाओ, वापस आओ, भेड़िया ले जाओ-भेड़ वापस लाओ, घास ले जाओ, वापस आओ-भेड़ ले जाओ',opts:['पहले भेड़ ले जाओ, वापस आओ, भेड़िया ले जाओ-भेड़ वापस लाओ, घास ले जाओ, वापस आओ-भेड़ ले जाओ','पहले भेड़िया ले जाओ','पहले घास ले जाओ और वापस मत आओ','तीनों एक साथ ले जाओ'],hint:'भेड़ को बीच में बार-बार लाना होगा',zone:2},
+  {hi:'5 आदमी एक कमरे में हैं। हर एक दूसरे से हाथ मिलाता है। कुल कितने हाथ मिलाने होंगे?',en:'5 men in a room, each shakes hands with every other once. Total handshakes?',type:'type',ans:'10',hint:'n(n-1)/2 = 5×4/2',zone:2},
+  {hi:'एक घड़ी में 3 बजे हैं। घंटे और मिनट की सुई के बीच कितने डिग्री का कोण है?',en:'Clock shows 3:00. What is the angle between hour and minute hands?',type:'type',ans:'90',hint:'3 बजे की स्थिति याद करो',zone:2},
+  {hi:'दो पिता और दो बेटे मिलकर 3 सेब बांट रहे हैं, हर एक को पूरा सेब मिलता है। कैसे?',en:'2 fathers and 2 sons share 3 apples equally, each getting a whole apple. How?',type:'mcq',ans:'दादा, बेटा (जो पिता भी है), और पोता — सिर्फ 3 लोग',opts:['दादा, बेटा (जो पिता भी है), और पोता — सिर्फ 3 लोग','सेब आधे बांटे गए','एक झूठ बोल रहा था','असंभव है'],hint:'3 पीढ़ियाँ लेकिन सिर्फ 3 लोग',zone:2},
+  {hi:'एक कमरे में बिल्ली है। 4 कोनों में 1-1 बिल्ली बैठी है, हर बिल्ली के सामने 3 बिल्लियां हैं। कुल कितनी बिल्लियां हैं?',en:'4 cats in 4 corners, each sees 3 cats in front. Total cats?',type:'type',ans:'4',hint:'हर बिल्ली बाकी 3 को देख सकती है',zone:2},
+  {hi:'अगर ट्रेन 60 किमी/घंटा से चलकर 3 घंटे में मंज़िल पहुंचती है, तो 90 किमी/घंटा से कितने घंटे में पहुंचेगी?',en:'Train travels at 60km/h reaches in 3hrs. At 90km/h, how long?',type:'type',ans:'2',hint:'दूरी = speed × time, दूरी constant रहेगी',zone:2},
+  {hi:'एक आदमी हर रोज़ अपनी उम्र के बराबर रुपये बचाता है। 10 दिन में उसने 550 रुपये बचाए। उसकी शुरुआती उम्र क्या थी?',en:'Man saves money equal to his age each day, increasing daily. Saved ₹550 in 10 days. Starting age?',type:'type',ans:'50',hint:'AP sum: n/2(2a+(n-1)d), d=1',zone:2},
+  {hi:'मैं हमेशा आगे जाता हूँ, कभी पीछे नहीं, मेरे बिना समय नहीं चलता। मैं क्या हूँ?',en:'I always move forward, never back, time can\'t move without me.',type:'mcq',ans:'घड़ी की सुई',opts:['घड़ी की सुई','हवा','पानी','सूरज'],hint:'12 अंकों पर घूमती है',zone:2},
+  {hi:'एक संख्या को 5 से भाग दो तो 3 बचता है, 7 से भाग दो तो 5 बचता है। सबसे छोटी संख्या क्या है?',en:'A number leaves remainder 3 when divided by 5, remainder 5 when divided by 7. Smallest number?',type:'type',ans:'33',hint:'दोनों conditions check करते जाओ',zone:2},
+
+  // ===== ZONE 3 (Hard, Level 41-60) =====
+  {hi:'एक आदमी के पास 8 गेंदें हैं, एक नकली है जो हल्की या भारी हो सकती है। एक तराज़ू से सिर्फ 2 बार तौलकर नकली गेंद ढूंढो। कैसे?',en:'8 balls, 1 fake (lighter or heavier). Find it using a balance scale only 2 times.',type:'mcq',ans:'गेंदों को 3 ग्रुप (3,3,2) में बांटो और तुलना करो',opts:['गेंदों को 3 ग्रुप (3,3,2) में बांटो और तुलना करो','सभी को एक साथ तौलो','2-2 के जोड़े बनाओ','असंभव है'],hint:'Group divide करना ज़रूरी है',zone:3},
+  {hi:'100 बल्ब एक लाइन में हैं, सभी बंद हैं। 100 लोग आते हैं — पहला सभी bulb का switch दबाता है, दूसरा हर दूसरे bulb का, तीसरा हर तीसरे का, इस तरह 100वां सिर्फ 100वें का। आख़िर में कितने bulb जल रहे होंगे?',en:'100 bulbs, person n toggles every nth bulb. How many bulbs ON at the end?',type:'type',ans:'10',hint:'Perfect squares (1,4,9,16...) जलेंगे',zone:3},
+  {hi:'एक कमरे में 23 लोग हैं। कम से कम कितनी probability है कि 2 लोगों का birthday same हो?',en:'23 people in a room. What is approx probability that 2 share a birthday?',type:'mcq',ans:'50% से ज़्यादा',opts:['50% से ज़्यादा','10% से कम','25%','100%'],hint:'Birthday Paradox',zone:3},
+  {hi:'एक दौड़ में A, B से आगे है, B, C से आगे है, D, A और C के बीच में है। चौथे नंबर पर कौन है?',en:'A is ahead of B, B ahead of C, D is between A and C. Who is 4th?',type:'mcq',ans:'C',opts:['A','B','C','D'],hint:'क्रम लिखो: A, D, B, C',zone:3},
+  {hi:'एक संख्या के अंकों का योग 18 है और वह 9 से पूरी तरह विभाज्य है। यह संख्या 2 अंकों की सबसे बड़ी है। वह संख्या क्या है?',en:'A 2-digit number whose digits sum to 18 and is divisible by 9, find the largest.',type:'type',ans:'99',hint:'9+9=18, 99÷9=11',zone:3},
+  {hi:'3 बक्सों में सिक्के हैं — एक में सिर्फ सोने, एक सिर्फ चांदी, एक मिक्स। लेबल सभी गलत हैं। 1 सिक्का निकालकर सही लेबल कैसे लगाओ?',en:'3 boxes labeled Gold, Silver, Mixed - all labels wrong. Find correct labels by drawing 1 coin.',type:'mcq',ans:'"Mixed" लेबल वाले बॉक्स से सिक्का निकालो',opts:['"Mixed" लेबल वाले बॉक्स से सिक्का निकालो','"Gold" लेबल वाले से निकालो','किसी से भी निकालो','3 सिक्के निकालने होंगे'],hint:'सभी लेबल गलत हैं तो "Mixed" वाला असल में pure है',zone:3},
+  {hi:'एक परिवार में हर बेटी के 1 भाई हैं और हर बेटे के 2 बहनें हैं। परिवार में कुल कितने बच्चे हैं?',en:'Family where each daughter has 1 brother, each son has 2 sisters. Total children?',type:'type',ans:'3',hint:'2 बहनें + 1 भाई = 3',zone:3},
+  {hi:'दो रस्सियां हैं, हर एक को जलने में पूरा 1 घंटा लगता है (असमान गति से जलती हैं)। सिर्फ इन्हें जलाकर 45 मिनट कैसे मापो?',en:'2 ropes, each burns in 1hr (unevenly). Measure exactly 45 minutes using only these.',type:'mcq',ans:'एक रस्सी दोनों सिरों से, दूसरी एक सिरे से जलाओ',opts:['एक रस्सी दोनों सिरों से, दूसरी एक सिरे से जलाओ','दोनों एक साथ एक सिरे से जलाओ','आधी रस्सी काट दो','असंभव है'],hint:'दोनों सिरों से जलाने पर समय आधा हो जाता है',zone:3},
+  {hi:'एक सीढ़ी की 10 पायदान चढ़ने हैं, हर बार 1 या 2 पायदान चढ़ सकते हो। कितने तरीकों से चढ़ सकते हो?',en:'10 steps to climb, 1 or 2 steps at a time. How many ways?',type:'type',ans:'89',hint:'Fibonacci sequence',zone:3},
+  {hi:'5 लोग एक गोल मेज़ पर बैठे हैं। हर एक के बाएं वाला उससे 1 साल छोटा है। सबकी उम्र का योग 175 है, सबसे बड़े की उम्र पता करो (पूरे चक्र में 1-1 साल का अंतर)।',en:'5 people round table, each is 1yr younger than person to right, ages sum 175. Find oldest age. (assume arithmetic progression breaks circular for this)',type:'type',ans:'37',hint:'औसत 35 है, फैलाव के हिसाब से adjust करो',zone:3},
+
+  // ===== ZONE 4 (Expert, Level 61-80) =====
+  {hi:'12 गेंदों में से 1 नकली है (हल्की या भारी पता नहीं)। तराज़ू से सिर्फ 3 बार तौलकर नकली गेंद और बताओ कि वो हल्की है या भारी। कैसे?',en:'12 balls, 1 fake (weight unknown lighter/heavier). Find it AND determine light/heavy in just 3 weighings.',type:'mcq',ans:'4-4-4 में divide करके systematic comparison करो',opts:['4-4-4 में divide करके systematic comparison करो','6-6 में बांटो','सभी एक साथ तौलो','2 बार तौलना काफ़ी है'],hint:'Classic 12-ball puzzle, ternary search जैसा',zone:4},
+  {hi:'एक टैंक को भरने वाला पाइप 6 घंटे में भरता है, खाली करने वाला पाइप 8 घंटे में खाली करता है। दोनों एक साथ खुले हों तो टैंक कितने घंटे में भरेगा?',en:'Pipe fills tank in 6hrs, another empties in 8hrs. Both open together, time to fill?',type:'type',ans:'24',hint:'1/6 - 1/8 = 1/24',zone:4},
+  {hi:'100 कैदी हैं, हर एक का नंबर 1-100 है। एक कमरे में 100 डिब्बों में बेतरतीब नंबर हैं। हर कैदी अपना नंबर ढूंढने के लिए सिर्फ 50 डिब्बे खोल सकता है। सबको अपना नंबर मिल जाए, ऐसी कौन सी strategy काम करेगी?',en:'100 prisoners puzzle - each opens 50 boxes to find own number. Which strategy gives best survival chance?',type:'mcq',ans:'अपने नंबर से शुरू करके चेन फॉलो करो (cycle following)',opts:['अपने नंबर से शुरू करके चेन फॉलो करो (cycle following)','बेतरतीब डिब्बे खोलो','क्रम से 1 से 50 खोलो','सभी डिब्बे एक साथ देखो'],hint:'Famous 100 prisoners riddle - cycle strategy',zone:4},
+  {hi:'एक संख्या x है जो खुद के वर्गमूल से 56 ज़्यादा है। x का मान क्या है?',en:'A number x is 56 more than its square root. Find x.',type:'type',ans:'64',hint:'√64=8, 64-8=56',zone:4},
+  {hi:'3 स्विच बाहर हैं, 3 बल्ब अंदर एक बंद कमरे में हैं। बाहर से अंदर सिर्फ एक बार जाकर बताओ कौन सा स्विच किस बल्ब से जुड़ा है।',en:'3 switches outside, 3 bulbs inside closed room. Enter room only once to determine which switch controls which bulb.',type:'mcq',ans:'एक स्विच ऑन करके कुछ देर रखो, बंद करो, दूसरा ऑन करो, फिर अंदर जाओ — गरम बल्ब पहले वाले का है',opts:['एक स्विच ऑन करके कुछ देर रखो, बंद करो, दूसरा ऑन करो, फिर अंदर जाओ — गरम बल्ब पहले वाले का है','तीनों एक साथ ऑन करो','हर बार अंदर जाकर चेक करो','असंभव है एक बार में'],hint:'बल्ब की गर्मी का इस्तेमाल करो',zone:4},
+  {hi:'एक आदमी झूठ बोलने वाले गाँव और सच बोलने वाले गाँव के बीच के रास्ते पर है। एक आदमी मिलता है जो किसी भी गाँव का हो सकता है। सिर्फ 1 सवाल पूछकर पता करो कि वो किस गाँव से है।',en:'Man at crossroad between Truth village and Lie village. Meets a person, ask just 1 question to know which village the road leads to.',type:'mcq',ans:'"क्या तुम कहोगे कि यह रास्ता तुम्हारे गाँव जाता है?"',opts:['"क्या तुम कहोगे कि यह रास्ता तुम्हारे गाँव जाता है?"','"तुम झूठ बोलते हो क्या?"','"यह रास्ता कहाँ जाता है?"','"तुम्हारा गाँव कौन सा है?"'],hint:'Double-negative question chahiye',zone:4},
+  {hi:'एक संख्या ऐसी है जिसे 2,3,4,5,6 से भाग देने पर हर बार 1 बचता है, लेकिन 7 से पूरी तरह विभाज्य है। सबसे छोटी संख्या बताओ।',en:'Number leaves remainder 1 when divided by 2,3,4,5,6 but divisible by 7 exactly. Find smallest.',type:'type',ans:'301',hint:'LCM(2,3,4,5,6)=60, 60k+1 जो 7 से divisible हो',zone:4},
+  {hi:'8 लोग शतरंज के नॉक-आउट टूर्नामेंट में खेल रहे हैं (हर हार वाला बाहर)। चैंपियन बनने के लिए कितने मैच खेलने होंगे, और टोटल कितने मैच होंगे?',en:'8 player knockout chess tournament. Total matches played in whole tournament?',type:'type',ans:'7',hint:'हर मैच में 1 हारता है, चैंपियन तक 7 को हारना है',zone:4},
+  {hi:'एक झील पर लिली के पत्ते हैं जो हर दिन डबल हो जाते हैं। 48वें दिन पूरी झील ढक जाती है। किस दिन झील आधी ढकी होगी?',en:'Lily pads double daily, lake fully covered on day 48. On which day is it half covered?',type:'type',ans:'47',hint:'डबलिंग को पीछे से सोचो',zone:4},
+  {hi:'5 घर एक लाइन में हैं, अलग-अलग रंग के, अलग देश के मालिक, अलग पेय, अलग सिगरेट, अलग पालतू जानवर। सुराग़ों से पता करो — किसके पास मछली है? (Classic Einstein riddle का सरल version — मानें: नीला घर बीच में है, दाएं वाला कॉफी पीता है, हरा घर वाला कुत्ता पालता है)',en:'Simplified Einstein riddle version with limited clues.',type:'mcq',ans:'अतिरिक्त सुराग़ चाहिए — यह सवाल जटिल पूर्ण जानकारी पर निर्भर है',opts:['अतिरिक्त सुराग़ चाहिए — यह सवाल जटिल पूर्ण जानकारी पर निर्भर है','नीला घर वाला','हरा घर वाला','दायां घर वाला'],hint:'Pure Einstein riddle needs all 15 clues',zone:4},
+
+  // ===== ZONE 5 (EXTREME, Level 81-100) =====
+  {hi:'10 बक्सों में सिक्के हैं, हर बक्से में 100 सिक्के। एक बक्से के सभी सिक्के नकली हैं (नकली सिक्का असली से 1 ग्राम हल्का है)। सिर्फ एक बार तराज़ू (digital weighing scale) इस्तेमाल करके नकली बक्सा ढूंढो।',en:'10 boxes, 100 coins each, one box has all fake coins (1g lighter). Find fake box using digital scale only once.',type:'mcq',ans:'बक्से नंबर 1 से 1 सिक्का, नंबर 2 से 2 सिक्के...इस तरह लो और कुल वज़न से कमी देखो',opts:['बक्से नंबर 1 से 1 सिक्का, नंबर 2 से 2 सिक्के...इस तरह लो और कुल वज़न से कमी देखो','हर बक्से को अलग तौलो','5-5 बक्सों में बांटो','असंभव एक बार में'],hint:'हर बक्से से अलग संख्या में सिक्के लो',zone:5},
+  {hi:'एक संख्या n ऐसी है कि n² के अंकों का योग n के अंकों के योग का वर्ग है, और n दो अंकों की सबसे बड़ी संख्या है। n क्या है?',en:'Two-digit number n where sum of digits of n² equals square of sum of digits of n. Find largest n.',type:'type',ans:'13',hint:'13²=169, 1+6+9=16=(1+3)²',zone:5},
+  {hi:'100 लोग एक पंक्ति में टोपी पहने हैं (काली या सफ़ेद), हर एक सिर्फ आगे वालों की टोपी देख सकता है। हर एक को अपनी टोपी का रंग बताना है (पीछे से शुरू)। गलत बोलने पर मृत्यु। कितने ज़्यादा से ज़्यादा बचाए जा सकते हैं strategy से?',en:'100 people in a line wearing black/white hats, each sees only people in front. Must guess own hat color. Maximum guaranteed survivors with best strategy?',type:'type',ans:'99',hint:'आख़िरी वाला parity (XOR) बताकर खुद को बलिदान करे',zone:5},
+  {hi:'एक कमरे में 4 दीवारों पर 4 अलग रंग के बल्ब हैं जो randomly टॉगल करते रहते हैं। हर 1 मिनट में 1 बल्ब अपनी हालत बदलता है। शुरुआत में सभी बंद थे। 60 मिनट बाद कितने बल्ब जलते होने की संभावना अधिकतम है?',en:'4 bulbs randomly toggle, one changes state per minute, starting all off. After 60 mins, most likely number ON?',type:'mcq',ans:'2 (probability सबसे ज़्यादा संतुलित स्थिति की होती है)',opts:['0','2 (probability सबसे ज़्यादा संतुलित स्थिति की होती है)','4','यह predict नहीं हो सकता'],hint:'Random walk के संतुलन बिंदु के बारे सोचो',zone:5},
+  {hi:'एक अनंत ग्रिड पर शुरू से एक चींटी (0,0) पर है। हर सेकंड वह बराबर probability से ऊपर, नीचे, बाएं, दायें जा सकती है। n सेकंड बाद origin पर वापस आने की संभावना n बढ़ने पर क्या होती है (2D random walk में)?',en:'2D random walk - as n increases, probability of returning to origin?',type:'mcq',ans:'1 की तरफ बढ़ती है (recurrent है 2D में)',opts:['0 हो जाती है','1 की तरफ बढ़ती है (recurrent है 2D में)','हमेशा 0.5 रहती है','यह random है, pattern नहीं'],hint:'Polya\'s random walk theorem - 2D recurrent है',zone:5},
+  {hi:'एक संख्या का हर अंक उसके बाएं वाले से बड़ा है, और सभी अंकों का गुणनफल 105 है। वह संख्या क्या है (सबसे छोटी ऐसी संख्या)?',en:'A number where each digit is greater than the one to its left, product of digits is 105. Find smallest such number.',type:'type',ans:'357',hint:'3×5×7=105, बढ़ते क्रम में',zone:5},
+  {hi:'7 बिलियर्ड बॉल्स हैं, सभी एक जैसी दिखती हैं लेकिन एक का वज़न अलग है (हल्की या भारी, पता नहीं)। न्यूनतम कितनी बार तराज़ू इस्तेमाल करनी होगी नकली बॉल ढूंढने और बताने के लिए कि हल्की है या भारी?',en:'7 balls, 1 odd weight (lighter or heavier unknown). Minimum weighings to identify it AND determine light/heavy?',type:'type',ans:'3',hint:'log base 3 जैसा approach - 3^3=27 > संभावनाएं',zone:5},
+  {hi:'एक ट्रेन हर घंटे दोनों दिशाओं से चलती है A से B के बीच, यात्रा का समय 5 घंटे है। आज सुबह 6 बजे A से निकलने वाली ट्रेन को रास्ते में B से आती कितनी ट्रेनें मिलेंगी?',en:'Trains leave every hour both directions A to B, journey takes 5 hours. Train leaving A at 6am meets how many trains from B?',type:'type',ans:'9',hint:'जो ट्रेनें already रास्ते में हैं + नई आने वाली',zone:5},
+  {hi:'n लोग एक पार्टी में हैं, हर 2 लोग एक दूसरे को जानते हैं या नहीं जानते (कोई तीसरा option नहीं)। साबित करना है कि हमेशा कम से कम 2 लोग होंगे जिनके जानने वालों की संख्या बराबर हो (n≥2 के लिए) — n=10 के लिए, हर व्यक्ति के जान-पहचान की range क्या होगी?',en:'Pigeonhole-style: in a party of n=10, each person knows 0 to n-1 others. What\'s the range of possible "known counts"?',type:'type',ans:'0 to 9',hint:'10 possible values but pigeonhole forces a repeat',zone:5},
+  {hi:'एक राजा के पास 1000 बोतल वाइन है, एक बोतल में ज़हर है जो पीने के बाद 24 घंटे में मरता है। 10 चूहों से, सिर्फ 24 घंटे में ज़हरीली बोतल ढूंढो। न्यूनतम कितने चूहे काफ़ी हैं?',en:'1000 wine bottles, 1 poisoned (kills in 24hrs). Find poisoned bottle in 24hrs using rats. Minimum rats needed?',type:'type',ans:'10',hint:'2^10=1024 > 1000, binary encoding सोचो',zone:5},
+];
+
+function getRiddlesForZone(zone){return RIDDLE_BANK.filter(r=>r.zone===zone);}
+
+function genRiddleTask(lv,ti){
+  const d=getDiff(lv);
+  const zoneRiddles=getRiddlesForZone(d.zone);
+  const idx=(lv*7+ti*3)%zoneRiddles.length;
+  const r=zoneRiddles[idx];
+  return{...r,time:r.type==='type'?Math.round(40*d.timeScale):Math.round(25*d.timeScale)};
+}
+
+function genTasks(lv){const t=[];for(let i=0;i<10;i++)t.push(genRiddleTask(lv,i));return t;}
+
+function loadTask(){
+  clearTmr();
+  CG.answered=false;
+  const task=CG.tasks[CG.task];
+  updSubtitle();
+  document.getElementById('g-combo').textContent='x'+CG.combo;
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;
+  updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const card=document.createElement('div');card.className='q-card';
+  card.innerHTML=`<div class="riddle-text">${task.hi}<small>${task.en}</small></div>`;
+  qa.appendChild(card);
+  const h=document.createElement('div');h.className='hint-t';h.textContent='💡 '+task.hint;qa.appendChild(h);
+
+  if(task.type==='mcq'){
+    qa.appendChild(buildOpts(task.opts,(sel,btn)=>checkAnswer(sel===task.ans,btn,task.ans,null,nextTask)));
+  }else{
+    const wrap=document.createElement('div');wrap.className='type-input-wrap';
+    const inp=document.createElement('input');inp.className='type-input';inp.type='text';inp.placeholder='जवाब लिखो...';inp.id='type-ans';
+    const btn=document.createElement('button');btn.className='type-submit';btn.textContent='✓ Submit';
+    function submit(){
+      const val=inp.value.trim().toLowerCase();
+      const correct=String(task.ans).trim().toLowerCase();
+      checkAnswer(val===correct,null,task.ans,null,nextTask);
+      inp.disabled=true;btn.disabled=true;
+    }
+    btn.onclick=submit;
+    inp.onkeypress=(e)=>{if(e.key==='Enter')submit();};
+    wrap.appendChild(inp);wrap.appendChild(btn);
+    qa.appendChild(wrap);
+    setTimeout(()=>inp.focus(),100);
+  }
+  qa.appendChild(buildFbNext(nextTask));
+  startTmr(task.time,()=>timeUp(task.ans,nextTask));
+}
+
+function nextTask(){
+  CG.task++;
+  if(CG.task>=10){levelComplete();return;}
+  loadTask();
+}
+
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('riddles',level);
+CG.tasks=genTasks(level);
+buildTaskDots();
+loadTask();
+</script>
+</body>
+</html>

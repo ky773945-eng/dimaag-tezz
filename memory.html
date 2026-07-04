@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🃏 Memory · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c3)">🃏 MEMORY</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card">
+    <span class="ld-emoji" id="ld-emoji">🏆</span>
+    <div class="stars-row" id="ld-stars">⭐⭐⭐</div>
+    <div class="ld-title" id="ld-title">Level Complete!</div>
+    <div class="ld-stats" id="ld-stats"></div>
+    <div class="ld-btns">
+      <button class="ld-btn p" id="ld-next-btn">Next Level →</button>
+      <a class="ld-btn s" href="levels.html?game=memory">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card">
+    <div style="font-size:3.5rem;margin-bottom:10px">💔</div>
+    <div class="lf-title" id="lf-title">Level Failed!</div>
+    <div class="lf-sub" id="lf-sub">Phir se koshish karo!</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div>
+    <div class="lf-btns">
+      <button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button>
+      <a class="lf-btn home" href="levels.html?game=memory">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ===== MEMORY GAME LOGIC =====
+const MEM_SETS=[['🐶','🐱','🦊','🐸','🦋','🌺','⭐','🎯'],['🍎','🍌','🍇','🍓','🍑','🥝','🍒','🫐'],['🚀','🛸','🌙','⭐','☀️','🪐','🌟','💫'],['🎸','🎺','🎻','🥁','🎹','🎷','🎵','🎶'],['🦁','🐯','🐻','🦊','🐺','🦅','🐬','🦋']];
+
+function genMemoryTask(lv){
+  const setIdx=Math.floor(lv/20)%MEM_SETS.length;
+  const pairs=Math.min(4+Math.floor(lv/10),8);
+  const emojis=MEM_SETS[setIdx].slice(0,pairs);
+  const cards=shuffle([...emojis,...emojis]);
+  return{cards,pairs};
+}
+
+function genTasks(lv){const t=[];for(let i=0;i<10;i++)t.push(genMemoryTask(lv));return t;}
+
+let memFlipped=[],memMatched=0,memMoves=0,memLocked=false;
+
+function loadTask(){
+  CG.answered=false;
+  const task=CG.tasks[CG.task];
+  updSubtitle();
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;
+  updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  memFlipped=[];memMatched=0;memMoves=0;memLocked=false;
+
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const info=document.createElement('div');
+  info.style.cssText='text-align:center;font-family:"Rajdhani",sans-serif;font-size:.85rem;color:var(--muted);padding:10px 0;';
+  info.id='mem-info';info.textContent='Cards match karo! / कार्ड मिलाओ!';
+  qa.appendChild(info);
+
+  const cols=task.pairs<=4?2:task.pairs<=6?3:4;
+  const grid=document.createElement('div');grid.className='mem-g';grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  task.cards.forEach((em,i)=>{
+    const c=document.createElement('div');c.className='mc';c.textContent='?';c.dataset.em=em;c.dataset.idx=i;
+    c.onclick=()=>memFlip(c,task);grid.appendChild(c);
+  });
+  qa.appendChild(grid);
+}
+
+function memFlip(card,task){
+  if(memLocked||card.classList.contains('fl')||card.classList.contains('mt'))return;
+  card.classList.add('fl');card.textContent=card.dataset.em;snd('ok');
+  memFlipped.push(card);memMoves++;
+  if(memFlipped.length===2){
+    memLocked=true;
+    setTimeout(()=>{
+      if(memFlipped[0].dataset.em===memFlipped[1].dataset.em){
+        memFlipped.forEach(c=>{c.classList.add('mt');c.classList.remove('fl');});
+        memMatched++;burst(window.innerWidth/2,window.innerHeight/2,'#00e676',12);
+        const info=document.getElementById('mem-info');if(info)info.textContent=`✅ Match! ${memMatched}/${task.pairs}`;
+        if(memMatched===task.pairs){
+          CG.taskResults[CG.task]=true;
+          updTaskDot(CG.task,'done');
+          const bonus=50+Math.max(0,(task.pairs*4-memMoves)*5);
+          CG.score+=bonus;
+          document.getElementById('g-score').textContent=CG.score;
+          document.getElementById('gt-score').textContent=CG.score;
+          spop('+'+bonus,'#00e676');
+          setTimeout(()=>{
+            const qa=document.getElementById('q-area');
+            const nb=document.createElement('button');nb.className='next-b on';nb.textContent='NEXT TASK →';nb.onclick=nextTask;qa.appendChild(nb);
+          },400);
+        }
+      }else{
+        memFlipped.forEach(c=>{c.classList.remove('fl');c.textContent='?';});
+        snd('bad');
+      }
+      memFlipped=[];memLocked=false;
+    },700);
+  }
+}
+
+function nextTask(){
+  CG.task++;
+  if(CG.task>=10){levelComplete();return;}
+  loadTask();
+}
+
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('memory',level);
+CG.tasks=genTasks(level);
+buildTaskDots();
+loadTask();
+</script>
+</body>
+</html>

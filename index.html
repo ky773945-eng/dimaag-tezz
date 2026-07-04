@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🧠 दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="app">
+  <div class="home-top">
+    <div class="logo">🧠 DIMAAG TEZZ</div>
+    <div class="logo-sub">Premium Brain Training · 100 Levels Each</div>
+  </div>
+  <div class="total-bar">
+    <div class="tb-item"><div class="tb-val" style="color:var(--c3)" id="h-total">0</div><div class="tb-lbl">Total Score</div></div>
+    <div class="tb-item"><div class="tb-val" style="color:var(--c2)" id="h-levels">0</div><div class="tb-lbl">Levels Done</div></div>
+    <div class="tb-item"><div class="tb-val" style="color:var(--c5)" id="h-stars">0</div><div class="tb-lbl">Stars ⭐</div></div>
+  </div>
+  <div class="games-list" id="games-list"></div>
+</div>
+<script src="engine.js"></script>
+<script>buildHome();</script>
+</body>
+</html>

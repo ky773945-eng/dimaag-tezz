@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>➕ Math Quiz · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c1)">➕ MATH QUIZ</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="tmr-wrap"><div class="tmr-track"><div class="tmr-fill" id="tmr-fill" style="width:100%"></div></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card">
+    <span class="ld-emoji" id="ld-emoji">🏆</span>
+    <div class="stars-row" id="ld-stars">⭐⭐⭐</div>
+    <div class="ld-title" id="ld-title">Level Complete!</div>
+    <div class="ld-stats" id="ld-stats"></div>
+    <div class="ld-btns">
+      <button class="ld-btn p" id="ld-next-btn">Next Level →</button>
+      <a class="ld-btn s" href="levels.html?game=math">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card">
+    <div style="font-size:3.5rem;margin-bottom:10px">💔</div>
+    <div class="lf-title" id="lf-title">Level Failed!</div>
+    <div class="lf-sub" id="lf-sub">Phir se koshish karo!</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div>
+    <div class="lf-btns">
+      <button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button>
+      <a class="lf-btn home" href="levels.html?game=math">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ===== MATH QUIZ LOGIC =====
+function genMathTask(lv){
+  const d=getDiff(lv);
+  const R=d.numRange;
+  const opIndex=Math.min(Math.floor(lv/25),3);
+  const ops=['+','-','×','÷'];
+  const available=ops.slice(0,opIndex+1);
+  const op=available[rnd(0,available.length-1)];
+  let a,b,ans,eq;
+
+  if(op==='+'){a=rnd(1,R);b=rnd(1,R);ans=a+b;eq=`${a} + ${b}`;}
+  else if(op==='-'){a=rnd(R/2,R);b=rnd(1,a);ans=a-b;eq=`${a} - ${b}`;}
+  else if(op==='×'){a=rnd(2,Math.min(lv+5,R/2));b=rnd(2,Math.min(lv+3,20));ans=a*b;eq=`${a} × ${b}`;}
+  else{b=rnd(2,Math.min(20,lv+2));ans=rnd(2,Math.min(20,lv+2));a=b*ans;eq=`${a} ÷ ${b}`;}
+
+  if(lv>60&&rnd(0,1)){const c=rnd(1,20);const op2=['+','-'][rnd(0,1)];ans=op2==='+'?ans+c:ans-c;eq=`(${eq}) ${op2} ${c}`;if(ans<0){ans=-ans;eq=`|${eq}|`;}}
+
+  const wrong=new Set();while(wrong.size<3){const w=ans+rnd(-Math.max(5,Math.floor(ans*.2)),Math.max(5,Math.floor(ans*.2)));if(w!==ans&&w!==0)wrong.add(w);}
+  return{eq:eq+' = ?',ans,opts:shuffle([ans,...wrong]),time:Math.round(15*d.timeScale),zone:d.zone};
+}
+
+function genTasks(lv){const t=[];for(let i=0;i<10;i++)t.push(genMathTask(lv));return t;}
+
+function loadTask(){
+  clearTmr();
+  CG.answered=false;
+  const task=CG.tasks[CG.task];
+  updSubtitle();
+  document.getElementById('g-combo').textContent='x'+CG.combo;
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;
+  updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const card=document.createElement('div');card.className='q-card';
+  card.innerHTML=`<div class="q-main">जवाब बताओ!<small>Solve it!</small></div><div class="q-eq" id="math-eq">${task.eq}</div>`;
+  card.querySelector('#math-eq').style.color=getZoneColor(task.zone);
+  qa.appendChild(card);
+  qa.appendChild(buildOpts(task.opts,(sel,btn)=>checkAnswer(sel===task.ans,btn,task.ans,null,nextTask)));
+  qa.appendChild(buildFbNext(nextTask));
+  startTmr(task.time,()=>timeUp(task.ans,nextTask));
+}
+
+function nextTask(){
+  CG.task++;
+  if(CG.task>=10){levelComplete();return;}
+  loadTask();
+}
+
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('math',level);
+CG.tasks=genTasks(level);
+buildTaskDots();
+loadTask();
+</script>
+</body>
+</html>
