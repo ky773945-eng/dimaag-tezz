@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎨 Color Match · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c6)">🎨 COLOR MATCH</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="tmr-wrap"><div class="tmr-track"><div class="tmr-fill" id="tmr-fill" style="width:100%"></div></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card">
+    <span class="ld-emoji" id="ld-emoji">🏆</span>
+    <div class="stars-row" id="ld-stars">⭐⭐⭐</div>
+    <div class="ld-title" id="ld-title">Level Complete!</div>
+    <div class="ld-stats" id="ld-stats"></div>
+    <div class="ld-btns">
+      <button class="ld-btn p" id="ld-next-btn">Next Level →</button>
+      <a class="ld-btn s" href="levels.html?game=color">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card">
+    <div style="font-size:3.5rem;margin-bottom:10px">💔</div>
+    <div class="lf-title" id="lf-title">Level Failed!</div>
+    <div class="lf-sub" id="lf-sub">Phir se koshish karo!</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div>
+    <div class="lf-btns">
+      <button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button>
+      <a class="lf-btn home" href="levels.html?game=color">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ===== COLOR MATCH LOGIC =====
+const COLORS=[{name:'RED',hex:'#ff1744'},{name:'GREEN',hex:'#00e676'},{name:'BLUE',hex:'#00e5ff'},{name:'YELLOW',hex:'#ffd700'},{name:'PURPLE',hex:'#bf5fff'},{name:'ORANGE',hex:'#ff6b35'},{name:'PINK',hex:'#ff4fa3'},{name:'WHITE',hex:'#ffffff'}];
+
+function genColorTask(lv){
+  const d=getDiff(lv);
+  const numColors=Math.min(4+Math.floor(lv/15),COLORS.length);
+  const pool=COLORS.slice(0,numColors);
+  const word=pool[rnd(0,pool.length-1)];
+  let ink=pool[rnd(0,pool.length-1)];
+  if(lv>30)while(ink===word)ink=pool[rnd(0,pool.length-1)];
+  const wrong=shuffle(pool.filter(c=>c.name!==ink.name)).slice(0,Math.min(numColors-1,5));
+  return{word:word.name,ink,ans:ink.name,opts:shuffle([ink,...wrong]),time:Math.round(10*d.timeScale)};
+}
+function genTasks(lv){const t=[];for(let i=0;i<10;i++)t.push(genColorTask(lv));return t;}
+
+function loadTask(){
+  clearTmr();
+  CG.answered=false;
+  const task=CG.tasks[CG.task];
+  updSubtitle();
+  document.getElementById('g-combo').textContent='x'+CG.combo;
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;
+  updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const card=document.createElement('div');card.className='q-card';
+  const lbl=document.createElement('div');lbl.style.cssText='font-family:"Rajdhani",sans-serif;font-size:.85rem;color:var(--muted);text-align:center;margin-bottom:8px;';
+  lbl.textContent='शब्द का रंग बताओ / What color is this word written in?';card.appendChild(lbl);
+  const cw=document.createElement('div');cw.className='color-word';cw.textContent=task.word;cw.style.color=task.ink.hex;cw.style.textShadow='0 0 20px '+task.ink.hex;card.appendChild(cw);
+  qa.appendChild(card);
+  const og=document.createElement('div');og.className='color-opts';
+  task.opts.forEach(opt=>{const b=document.createElement('button');b.className='color-ob';b.style.background=opt.hex;b.textContent=opt.name;b.onclick=()=>checkAnswer(opt.name===task.ans,b,task.ans,null,nextTask);og.appendChild(b);});
+  qa.appendChild(og);
+  qa.appendChild(buildFbNext(nextTask));
+  startTmr(task.time,()=>timeUp(task.ans,nextTask));
+}
+
+function nextTask(){
+  CG.task++;
+  if(CG.task>=10){levelComplete();return;}
+  loadTask();
+}
+
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('color',level);
+CG.tasks=genTasks(level);
+buildTaskDots();
+loadTask();
+</script>
+</body>
+</html>

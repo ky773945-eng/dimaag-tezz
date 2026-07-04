@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🌍 Flag Quiz · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.flag-display{font-size:clamp(4rem,20vw,7rem);text-align:center;padding:20px;background:var(--card);border-radius:20px;border:1px solid var(--border);margin-bottom:14px;line-height:1.1;}
+.flag-hint{font-family:'Rajdhani',sans-serif;font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:10px;letter-spacing:1px;}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c2)">🌍 FLAG QUIZ</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="tmr-wrap"><div class="tmr-track"><div class="tmr-fill" id="tmr-fill" style="width:100%"></div></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card"><span class="ld-emoji" id="ld-emoji">🏆</span><div class="stars-row" id="ld-stars">⭐⭐⭐</div><div class="ld-title" id="ld-title">Level Complete!</div><div class="ld-stats" id="ld-stats"></div><div class="ld-btns"><button class="ld-btn p" id="ld-next-btn">Next Level →</button><a class="ld-btn s" href="levels.html?game=flags">📋 Levels</a></div></div>
+</div>
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card"><div style="font-size:3.5rem;margin-bottom:10px">💔</div><div class="lf-title" id="lf-title">Level Failed!</div><div class="lf-sub" id="lf-sub">Phir se koshish karo!</div><div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div><div class="lf-btns"><button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button><a class="lf-btn home" href="levels.html?game=flags">📋 Levels</a></div></div>
+</div>
+<script src="engine.js"></script>
+<script>
+// Flag data: flag emoji, country name, continent, difficulty zone
+const FLAGS=[
+  // Zone 1 - Very famous
+  {flag:'🇮🇳',name:'India',nameHi:'भारत',zone:1},
+  {flag:'🇺🇸',name:'USA',nameHi:'अमेरिका',zone:1},
+  {flag:'🇬🇧',name:'UK',nameHi:'ब्रिटेन',zone:1},
+  {flag:'🇨🇳',name:'China',nameHi:'चीन',zone:1},
+  {flag:'🇯🇵',name:'Japan',nameHi:'जापान',zone:1},
+  {flag:'🇫🇷',name:'France',nameHi:'फ्रांस',zone:1},
+  {flag:'🇩🇪',name:'Germany',nameHi:'जर्मनी',zone:1},
+  {flag:'🇷🇺',name:'Russia',nameHi:'रूस',zone:1},
+  {flag:'🇧🇷',name:'Brazil',nameHi:'ब्राज़ील',zone:1},
+  {flag:'🇦🇺',name:'Australia',nameHi:'ऑस्ट्रेलिया',zone:1},
+  {flag:'🇨🇦',name:'Canada',nameHi:'कनाडा',zone:1},
+  {flag:'🇮🇹',name:'Italy',nameHi:'इटली',zone:1},
+  // Zone 2 - Well known
+  {flag:'🇵🇰',name:'Pakistan',nameHi:'पाकिस्तान',zone:2},
+  {flag:'🇧🇩',name:'Bangladesh',nameHi:'बांग्लादेश',zone:2},
+  {flag:'🇳🇵',name:'Nepal',nameHi:'नेपाल',zone:2},
+  {flag:'🇿🇦',name:'South Africa',nameHi:'दक्षिण अफ्रीका',zone:2},
+  {flag:'🇲🇽',name:'Mexico',nameHi:'मेक्सिको',zone:2},
+  {flag:'🇦🇷',name:'Argentina',nameHi:'अर्जेंटीना',zone:2},
+  {flag:'🇪🇸',name:'Spain',nameHi:'स्पेन',zone:2},
+  {flag:'🇸🇦',name:'Saudi Arabia',nameHi:'सऊदी अरब',zone:2},
+  {flag:'🇹🇷',name:'Turkey',nameHi:'तुर्की',zone:2},
+  {flag:'🇰🇷',name:'South Korea',nameHi:'दक्षिण कोरिया',zone:2},
+  {flag:'🇮🇩',name:'Indonesia',nameHi:'इंडोनेशिया',zone:2},
+  {flag:'🇳🇬',name:'Nigeria',nameHi:'नाइजीरिया',zone:2},
+  // Zone 3 - Moderate
+  {flag:'🇵🇹',name:'Portugal',nameHi:'पुर्तगाल',zone:3},
+  {flag:'🇸🇪',name:'Sweden',nameHi:'स्वीडन',zone:3},
+  {flag:'🇳🇴',name:'Norway',nameHi:'नॉर्वे',zone:3},
+  {flag:'🇳🇱',name:'Netherlands',nameHi:'नीदरलैंड',zone:3},
+  {flag:'🇵🇱',name:'Poland',nameHi:'पोलैंड',zone:3},
+  {flag:'🇺🇦',name:'Ukraine',nameHi:'यूक्रेन',zone:3},
+  {flag:'🇦🇪',name:'UAE',nameHi:'यूएई',zone:3},
+  {flag:'🇮🇱',name:'Israel',nameHi:'इज़राइल',zone:3},
+  {flag:'🇹🇭',name:'Thailand',nameHi:'थाईलैंड',zone:3},
+  {flag:'🇻🇳',name:'Vietnam',nameHi:'वियतनाम',zone:3},
+  {flag:'🇵🇭',name:'Philippines',nameHi:'फिलीपींस',zone:3},
+  {flag:'🇪🇬',name:'Egypt',nameHi:'मिस्र',zone:3},
+  // Zone 4 - Hard
+  {flag:'🇧🇪',name:'Belgium',nameHi:'बेल्जियम',zone:4},
+  {flag:'🇨🇭',name:'Switzerland',nameHi:'स्विट्ज़रलैंड',zone:4},
+  {flag:'🇦🇹',name:'Austria',nameHi:'ऑस्ट्रिया',zone:4},
+  {flag:'🇬🇷',name:'Greece',nameHi:'ग्रीस',zone:4},
+  {flag:'🇷🇴',name:'Romania',nameHi:'रोमानिया',zone:4},
+  {flag:'🇭🇺',name:'Hungary',nameHi:'हंगरी',zone:4},
+  {flag:'🇮🇷',name:'Iran',nameHi:'ईरान',zone:4},
+  {flag:'🇮🇶',name:'Iraq',nameHi:'इराक',zone:4},
+  {flag:'🇰🇪',name:'Kenya',nameHi:'केन्या',zone:4},
+  {flag:'🇪🇹',name:'Ethiopia',nameHi:'इथियोपिया',zone:4},
+  {flag:'🇨🇱',name:'Chile',nameHi:'चिली',zone:4},
+  {flag:'🇵🇪',name:'Peru',nameHi:'पेरू',zone:4},
+  // Zone 5 - Very hard
+  {flag:'🇸🇰',name:'Slovakia',nameHi:'स्लोवाकिया',zone:5},
+  {flag:'🇸🇮',name:'Slovenia',nameHi:'स्लोवेनिया',zone:5},
+  {flag:'🇭🇷',name:'Croatia',nameHi:'क्रोएशिया',zone:5},
+  {flag:'🇷🇸',name:'Serbia',nameHi:'सर्बिया',zone:5},
+  {flag:'🇧🇬',name:'Bulgaria',nameHi:'बुल्गारिया',zone:5},
+  {flag:'🇲🇩',name:'Moldova',nameHi:'मोल्दोवा',zone:5},
+  {flag:'🇬🇪',name:'Georgia',nameHi:'जॉर्जिया',zone:5},
+  {flag:'🇦🇲',name:'Armenia',nameHi:'आर्मेनिया',zone:5},
+  {flag:'🇦🇿',name:'Azerbaijan',nameHi:'अज़रबैजान',zone:5},
+  {flag:'🇹🇯',name:'Tajikistan',nameHi:'ताजिकिस्तान',zone:5},
+  {flag:'🇲🇬',name:'Madagascar',nameHi:'मेडागास्कर',zone:5},
+  {flag:'🇸🇸',name:'South Sudan',nameHi:'दक्षिण सूडान',zone:5},
+];
+
+function getPool(zone){return FLAGS.filter(f=>f.zone===zone);}
+function genTask(lv,ti){
+  const d=getDiff(lv);
+  const pool=getPool(d.zone);
+  const allOtherZones=FLAGS.filter(f=>f.zone<=d.zone);
+  const idx=(lv*7+ti*4)%pool.length;
+  const correct=pool[idx];
+  const wrongs=shuffle(allOtherZones.filter(f=>f.name!==correct.name)).slice(0,3);
+  return{correct,opts:shuffle([correct,...wrongs]),time:Math.round(12*d.timeScale)};
+}
+function genTasks(lv){return Array.from({length:10},(_,i)=>genTask(lv,i));}
+
+function loadTask(){
+  clearTmr();CG.answered=false;
+  const task=CG.tasks[CG.task];
+  updSubtitle();document.getElementById('g-combo').textContent='x'+CG.combo;document.getElementById('g-task').textContent=`${CG.task+1}/10`;updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const fd=document.createElement('div');fd.className='flag-display';fd.textContent=task.correct.flag;qa.appendChild(fd);
+  const fh=document.createElement('div');fh.className='flag-hint';fh.textContent='यह किस देश का झंडा है? / Which country\'s flag?';qa.appendChild(fh);
+  const og=document.createElement('div');og.className='opts-2';
+  task.opts.forEach(opt=>{
+    const b=document.createElement('button');b.className='opt-b';
+    b.innerHTML=`${opt.flag} ${opt.nameHi}<br><small style="font-size:.7rem;color:var(--muted)">${opt.name}</small>`;
+    b.onclick=()=>checkAnswer(opt.name===task.correct.name,b,task.correct.nameHi,null,nextTask);
+    og.appendChild(b);
+  });
+  qa.appendChild(og);qa.appendChild(buildFbNext(nextTask));
+  startTmr(task.time,()=>timeUp(task.correct.nameHi,nextTask));
+}
+function nextTask(){CG.task++;if(CG.task>=10){levelComplete();return;}loadTask();}
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('flags',level);CG.tasks=genTasks(level);buildTaskDots();loadTask();
+</script>
+</body>
+</html>

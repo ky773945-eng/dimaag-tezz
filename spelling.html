@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🔡 Spelling Bee · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.spell-area{padding:0 14px;max-width:500px;margin:0 auto;}
+.word-hint-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px;text-align:center;}
+.word-emoji{font-size:3.5rem;display:block;margin-bottom:8px;}
+.word-meaning{font-family:'Rajdhani',sans-serif;font-size:.95rem;color:var(--muted);line-height:1.5;}
+.word-meaning strong{color:var(--text);}
+.blanks-row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:14px 0;}
+.blank{width:36px;height:40px;border-bottom:3px solid rgba(255,255,255,.2);display:flex;align-items:flex-end;justify-content:center;font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:700;color:var(--c2);padding-bottom:2px;}
+.blank.filled{border-bottom-color:var(--c2);}
+.blank.correct{border-bottom-color:var(--c5);color:var(--c5);}
+.blank.wrong{border-bottom-color:var(--c6);color:var(--c6);}
+.letter-grid{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
+.letter-btn{width:44px;height:44px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:10px;font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;color:var(--text);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+.letter-btn:active:not(:disabled){transform:scale(.93);}
+.letter-btn:disabled{opacity:.3;}
+.del-btn{width:54px;height:44px;background:rgba(255,23,68,.1);border:1.5px solid rgba(255,23,68,.2);border-radius:10px;font-family:'Baloo 2',cursive;font-size:.9rem;font-weight:700;color:var(--c6);cursor:pointer;padding:0 6px;}
+.check-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--c4),#7b1fa2);border:none;border-radius:12px;font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#fff;cursor:pointer;margin-bottom:8px;letter-spacing:1px;}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c4)">🔡 SPELLING BEE</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="tmr-wrap"><div class="tmr-track"><div class="tmr-fill" id="tmr-fill" style="width:100%"></div></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card"><span class="ld-emoji" id="ld-emoji">🏆</span><div class="stars-row" id="ld-stars">⭐⭐⭐</div><div class="ld-title" id="ld-title">Level Complete!</div><div class="ld-stats" id="ld-stats"></div><div class="ld-btns"><button class="ld-btn p" id="ld-next-btn">Next Level →</button><a class="ld-btn s" href="levels.html?game=spelling">📋 Levels</a></div></div>
+</div>
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card"><div style="font-size:3.5rem;margin-bottom:10px">💔</div><div class="lf-title" id="lf-title">Level Failed!</div><div class="lf-sub" id="lf-sub">Phir se koshish karo!</div><div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div><div class="lf-btns"><button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button><a class="lf-btn home" href="levels.html?game=spelling">📋 Levels</a></div></div>
+</div>
+<script src="engine.js"></script>
+<script>
+const SPELL_WORDS=[
+  // Zone 1
+  {word:'CAT',emoji:'🐱',hi:'बिल्ली',zone:1},{word:'DOG',emoji:'🐶',hi:'कुत्ता',zone:1},
+  {word:'SUN',emoji:'☀️',hi:'सूरज',zone:1},{word:'MOON',emoji:'🌙',hi:'चाँद',zone:1},
+  {word:'FISH',emoji:'🐟',hi:'मछली',zone:1},{word:'BIRD',emoji:'🐦',hi:'पक्षी',zone:1},
+  {word:'BOOK',emoji:'📚',hi:'किताब',zone:1},{word:'HAND',emoji:'✋',hi:'हाथ',zone:1},
+  {word:'RAIN',emoji:'🌧️',hi:'बारिश',zone:1},{word:'STAR',emoji:'⭐',hi:'तारा',zone:1},
+  // Zone 2
+  {word:'APPLE',emoji:'🍎',hi:'सेब',zone:2},{word:'TIGER',emoji:'🐯',hi:'बाघ',zone:2},
+  {word:'WATER',emoji:'💧',hi:'पानी',zone:2},{word:'EARTH',emoji:'🌍',hi:'पृथ्वी',zone:2},
+  {word:'FLAME',emoji:'🔥',hi:'आग',zone:2},{word:'STORM',emoji:'⛈️',hi:'तूफान',zone:2},
+  {word:'BRAVE',emoji:'💪',hi:'बहादुर',zone:2},{word:'GLOBE',emoji:'🌐',hi:'विश्व',zone:2},
+  {word:'CHESS',emoji:'♟️',hi:'शतरंज',zone:2},{word:'PLANT',emoji:'🌿',hi:'पौधा',zone:2},
+  // Zone 3
+  {word:'PYTHON',emoji:'🐍',hi:'अजगर/Python',zone:3},{word:'SATURN',emoji:'🪐',hi:'शनि ग्रह',zone:3},
+  {word:'CASTLE',emoji:'🏰',hi:'महल',zone:3},{word:'BRIDGE',emoji:'🌉',hi:'पुल',zone:3},
+  {word:'SPIDER',emoji:'🕷️',hi:'मकड़ी',zone:3},{word:'MUSCLE',emoji:'💪',hi:'मांसपेशी',zone:3},
+  {word:'PUZZLE',emoji:'🧩',hi:'पहेली',zone:3},{word:'OXYGEN',emoji:'🌬️',hi:'ऑक्सीजन',zone:3},
+  {word:'GALAXY',emoji:'🌌',hi:'आकाशगंगा',zone:3},{word:'JUNGLE',emoji:'🌳',hi:'जंगल',zone:3},
+  // Zone 4
+  {word:'QUANTUM',emoji:'⚛️',hi:'क्वांटम',zone:4},{word:'ECLIPSE',emoji:'🌑',hi:'ग्रहण',zone:4},
+  {word:'PHANTOM',emoji:'👻',hi:'भूत',zone:4},{word:'ANCIENT',emoji:'🏛️',hi:'प्राचीन',zone:4},
+  {word:'THOUGHT',emoji:'🤔',hi:'विचार',zone:4},{word:'HARMONY',emoji:'🎵',hi:'सामंजस्य',zone:4},
+  {word:'COMPLEX',emoji:'🔀',hi:'जटिल',zone:4},{word:'FREEDOM',emoji:'🕊️',hi:'स्वतंत्रता',zone:4},
+  {word:'VITAMIN',emoji:'💊',hi:'विटामिन',zone:4},{word:'SCIENCE',emoji:'🔬',hi:'विज्ञान',zone:4},
+  // Zone 5
+  {word:'ALCHEMY',emoji:'⚗️',hi:'कीमिया',zone:5},{word:'TWILIGHT',emoji:'🌅',hi:'गोधूलि',zone:5},
+  {word:'SYMPHONY',emoji:'🎻',hi:'सिम्फनी',zone:5},{word:'LABYRINTH',emoji:'🌀',hi:'भूलभुलैया',zone:5},
+  {word:'METAPHOR',emoji:'💬',hi:'रूपक',zone:5},{word:'ELOQUENT',emoji:'🗣️',hi:'वाकपटु',zone:5},
+  {word:'CELESTIAL',emoji:'✨',hi:'आकाशीय',zone:5},{word:'MYTHOLOGY',emoji:'⚡',hi:'पुराण',zone:5},
+  {word:'ALGORITHM',emoji:'🖥️',hi:'एल्गोरिदम',zone:5},{word:'FIBONACCI',emoji:'🌀',hi:'फिबोनाची',zone:5},
+];
+
+let typedLetters=[];
+let currentWord='';
+
+function getPool(zone){return SPELL_WORDS.filter(w=>w.zone===zone);}
+function genTask(lv,ti){
+  const d=getDiff(lv);const pool=getPool(d.zone);
+  const idx=(lv*7+ti*3)%pool.length;
+  const w=pool[idx];
+  const extraLetters=[];
+  const alpha='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  while(extraLetters.length<Math.min(4+Math.floor(lv/20),8)){
+    const c=alpha[Math.floor(Math.random()*26)];
+    if(!w.word.includes(c)&&!extraLetters.includes(c))extraLetters.push(c);
+  }
+  const allLetters=shuffle([...w.word.split('').filter((c,i,a)=>a.indexOf(c)===i),...extraLetters]);
+  return{...w,letters:allLetters,time:Math.round(25*d.timeScale)};
+}
+function genTasks(lv){return Array.from({length:10},(_,i)=>genTask(lv,i));}
+
+function loadTask(){
+  clearTmr();CG.answered=false;typedLetters=[];
+  const task=CG.tasks[CG.task];currentWord=task.word;
+  updSubtitle();document.getElementById('g-combo').textContent='x'+CG.combo;document.getElementById('g-task').textContent=`${CG.task+1}/10`;updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const area=document.createElement('div');area.className='spell-area';
+  const hintCard=document.createElement('div');hintCard.className='word-hint-card';
+  hintCard.innerHTML=`<span class="word-emoji">${task.emoji}</span><div class="word-meaning"><strong>${task.hi}</strong><br><span style="font-size:.75rem">Spell this word / इस शब्द की spelling लिखो</span></div>`;
+  area.appendChild(hintCard);
+
+  // Blanks
+  const blanksRow=document.createElement('div');blanksRow.className='blanks-row';blanksRow.id='blanks-row';
+  for(let i=0;i<task.word.length;i++){const b=document.createElement('div');b.className='blank';b.id='blank'+i;blanksRow.appendChild(b);}
+  area.appendChild(blanksRow);
+
+  // Letter buttons
+  const letterGrid=document.createElement('div');letterGrid.className='letter-grid';letterGrid.id='letter-grid';
+  task.letters.forEach(letter=>{
+    const btn=document.createElement('button');btn.className='letter-btn';btn.textContent=letter;btn.id='lbtn-'+letter;
+    btn.onclick=()=>addLetter(letter,task,btn);letterGrid.appendChild(btn);
+  });
+  area.appendChild(letterGrid);
+
+  // Del and Check buttons
+  const delBtn=document.createElement('button');delBtn.className='del-btn';delBtn.textContent='⌫ Delete';delBtn.onclick=()=>deleteLetter(task);area.appendChild(delBtn);
+  const checkBtn=document.createElement('button');checkBtn.className='check-btn';checkBtn.textContent='✓ CHECK SPELLING';checkBtn.id='check-btn';checkBtn.onclick=()=>checkSpelling(task);area.appendChild(checkBtn);
+  qa.appendChild(area);
+  qa.appendChild(buildFbNext(nextTask));
+  startTmr(task.time,()=>timeUp(task.word,nextTask));
+}
+
+function addLetter(letter,task,btn){
+  if(CG.answered||typedLetters.length>=task.word.length)return;
+  typedLetters.push(letter);
+  btn.disabled=true;
+  updateBlanks(task);
+}
+
+function deleteLetter(task){
+  if(CG.answered||typedLetters.length===0)return;
+  const last=typedLetters.pop();
+  const btn=document.getElementById('lbtn-'+last);
+  // Find last disabled button with this letter
+  const allBtns=document.querySelectorAll('.letter-btn');
+  allBtns.forEach(b=>{if(b.textContent===last&&b.disabled)b.disabled=false;});
+  updateBlanks(task);
+}
+
+function updateBlanks(task){
+  for(let i=0;i<task.word.length;i++){
+    const blank=document.getElementById('blank'+i);
+    if(blank)blank.textContent=typedLetters[i]||'';
+    if(blank)blank.className='blank'+(typedLetters[i]?' filled':'');
+  }
+}
+
+function checkSpelling(task){
+  if(CG.answered)return;
+  const typed=typedLetters.join('');
+  const ok=typed===task.word;
+  for(let i=0;i<task.word.length;i++){
+    const blank=document.getElementById('blank'+i);
+    if(blank){blank.className='blank '+(ok?'correct':(typedLetters[i]===task.word[i]?'correct':'wrong'));}
+  }
+  checkAnswer(ok,null,task.word,ok?null:`Sahi spelling: ${task.word}`,nextTask);
+}
+
+function nextTask(){CG.task++;if(CG.task>=10){levelComplete();return;}loadTask();}
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('spelling',level);CG.tasks=genTasks(level);buildTaskDots();loadTask();
+</script>
+</body>
+</html>

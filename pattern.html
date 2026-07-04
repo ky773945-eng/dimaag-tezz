@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🔢 Pattern · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c2)">🔢 PATTERN</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="tmr-wrap"><div class="tmr-track"><div class="tmr-fill" id="tmr-fill" style="width:100%"></div></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card">
+    <span class="ld-emoji" id="ld-emoji">🏆</span>
+    <div class="stars-row" id="ld-stars">⭐⭐⭐</div>
+    <div class="ld-title" id="ld-title">Level Complete!</div>
+    <div class="ld-stats" id="ld-stats"></div>
+    <div class="ld-btns">
+      <button class="ld-btn p" id="ld-next-btn">Next Level →</button>
+      <a class="ld-btn s" href="levels.html?game=pattern">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card">
+    <div style="font-size:3.5rem;margin-bottom:10px">💔</div>
+    <div class="lf-title" id="lf-title">Level Failed!</div>
+    <div class="lf-sub" id="lf-sub">Phir se koshish karo!</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div>
+    <div class="lf-btns">
+      <button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button>
+      <a class="lf-btn home" href="levels.html?game=pattern">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ===== PATTERN GAME LOGIC =====
+const PAT_TEMPLATES=['add','mul','square','fib','sub','mix'];
+
+function genPattern(lv){
+  const d=getDiff(lv);
+  const t=PAT_TEMPLATES[Math.floor(lv/17)%PAT_TEMPLATES.length];
+  const range=d.numRange;
+  let pat,ans,hint;
+
+  if(t==='add'){const step=rnd(1,Math.min(lv*2,range));const start=rnd(1,range);pat=[];for(let i=0;i<4;i++)pat.push(start+step*i);ans=start+step*4;hint=`+${step} हर बार`;}
+  else if(t==='mul'){const m=rnd(2,Math.min(3+Math.floor(lv/20),6));const start=rnd(1,10);pat=[start,start*m,start*m*m,start*m*m*m];ans=start*m*m*m*m;hint=`×${m} हर बार`;}
+  else if(t==='square'){const offset=rnd(0,Math.floor(lv/10));pat=[(1+offset)**2,(2+offset)**2,(3+offset)**2,(4+offset)**2];ans=(5+offset)**2;hint='वर्ग संख्या n²';}
+  else if(t==='fib'){let a=rnd(1,Math.min(lv,10)),b=rnd(a,a+rnd(1,5));pat=[a,b];for(let i=0;i<3;i++){const c=a+b;pat.push(c);a=b;b=c;}ans=pat[3]+pat[4];hint='दो पिछले जोड़ो';}
+  else if(t==='sub'){const step=rnd(1,Math.min(lv,range/5));const start=rnd(step*5,range);pat=[start,start-step,start-step*2,start-step*3];ans=start-step*4;hint=`-${step} हर बार`;}
+  else{const a=rnd(2,Math.min(lv,10));const b=rnd(1,5);pat=[a,a+b,a+b+a,a+b+a+b];ans=pat[3]+a;hint='Pattern ढूंढो';}
+
+  pat.push('?');
+  const wrong=new Set();while(wrong.size<3){const w=ans+rnd(-Math.max(5,Math.floor(ans*.3)),Math.max(5,Math.floor(ans*.3)));if(w!==ans&&w>0)wrong.add(w);}
+  return{pat,ans,opts:shuffle([ans,...wrong]),hint,time:Math.round(20*d.timeScale)};
+}
+
+function genTasks(lv){const t=[];for(let i=0;i<10;i++)t.push(genPattern(lv));return t;}
+
+function loadTask(){
+  clearTmr();
+  CG.answered=false;
+  const task=CG.tasks[CG.task];
+  updSubtitle();
+  document.getElementById('g-combo').textContent='x'+CG.combo;
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;
+  updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  const card=document.createElement('div');card.className='q-card';
+  card.innerHTML=`<div class="q-main">पैटर्न पूरा करो!<small>Complete the pattern!</small></div>`;
+  const pr=document.createElement('div');pr.className='pat-row';
+  task.pat.forEach((item,i)=>{
+    if(i>0&&typeof item==='number'){const a=document.createElement('span');a.className='parr';a.textContent='→';pr.appendChild(a);}
+    const d=document.createElement('div');
+    if(item==='?'){d.className='pi qm';d.textContent='?';}
+    else if(i===task.pat.length-2&&typeof item==='number'){d.className='pi hi';d.textContent=item;}
+    else{d.className='pi';d.textContent=item;}
+    d.style.animationDelay=(i*.06)+'s';pr.appendChild(d);
+  });
+  card.appendChild(pr);
+  const h=document.createElement('div');h.className='hint-t';h.textContent='💡 '+task.hint;card.appendChild(h);
+  qa.appendChild(card);
+  qa.appendChild(buildOpts(task.opts,(sel,btn)=>checkAnswer(sel===task.ans,btn,task.ans,null,nextTask)));
+  qa.appendChild(buildFbNext(nextTask));
+  startTmr(task.time,()=>timeUp(task.ans,nextTask));
+}
+
+function nextTask(){
+  CG.task++;
+  if(CG.task>=10){levelComplete();return;}
+  loadTask();
+}
+
+// ===== START =====
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('pattern',level);
+CG.tasks=genTasks(level);
+buildTaskDots();
+loadTask();
+</script>
+</body>
+</html>

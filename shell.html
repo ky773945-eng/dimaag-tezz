@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎯 Shell Game · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.shell-area{
+  display:flex;flex-direction:column;align-items:center;
+  padding:10px 16px 20px;min-height:55vh;justify-content:center;
+}
+.shell-msg{
+  font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;
+  text-align:center;padding:10px 20px;background:var(--card);
+  border:1px solid var(--border);border-radius:12px;margin-bottom:20px;
+  min-height:44px;display:flex;align-items:center;justify-content:center;
+  width:100%;max-width:400px;
+}
+.cups-row{
+  display:flex;gap:16px;justify-content:center;align-items:flex-end;
+  margin-bottom:24px;position:relative;height:160px;width:100%;max-width:400px;
+}
+.cup-wrap{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  position:relative;cursor:pointer;max-width:110px;
+}
+.cup{
+  width:90px;height:110px;position:relative;transition:transform .35s cubic-bezier(.4,0,.2,1);
+  cursor:pointer;
+}
+.cup svg{width:100%;height:100%;}
+
+.cup-wrap.lift .cup{transform:translateY(-80px);}
+.cup-wrap.selected .cup{filter:drop-shadow(0 0 18px var(--c2));}
+.cup-wrap.correct .cup{filter:drop-shadow(0 0 18px var(--c5));}
+.cup-wrap.wrong-cup .cup{filter:drop-shadow(0 0 18px var(--c6));}
+
+.ball{
+  width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #fff8, transparent 60%),
+    radial-gradient(circle, var(--c3), #ff6b00);
+  box-shadow:0 4px 15px rgba(255,107,0,.5);
+  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  transition:opacity .2s;
+}
+
+.cup-base{
+  width:90px;height:10px;
+  background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.05));
+  border-radius:50%;
+  margin-top:2px;
+}
+
+.result-row{
+  display:flex;gap:10px;justify-content:center;
+  padding:0 16px;max-width:400px;margin:0 auto;
+}
+.r-chip{
+  flex:1;padding:10px;border-radius:12px;text-align:center;
+  font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:700;
+}
+.r-chip.ok{background:rgba(0,230,118,.12);color:var(--c5);border:1px solid rgba(0,230,118,.25);}
+.r-chip.bad{background:rgba(255,23,68,.1);color:var(--c6);border:1px solid rgba(255,23,68,.2);}
+.r-chip.info{background:var(--card);color:var(--muted);border:1px solid var(--border);}
+
+.speed-badge{
+  display:inline-block;padding:4px 14px;border-radius:50px;
+  font-family:'Rajdhani',sans-serif;font-size:.75rem;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:8px;font-weight:700;
+  text-align:center;
+}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c3)">🎯 SHELL GAME</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card">
+    <span class="ld-emoji" id="ld-emoji">🏆</span>
+    <div class="stars-row" id="ld-stars">⭐⭐⭐</div>
+    <div class="ld-title" id="ld-title">Level Complete!</div>
+    <div class="ld-stats" id="ld-stats"></div>
+    <div class="ld-btns">
+      <button class="ld-btn p" id="ld-next-btn">Next Level →</button>
+      <a class="ld-btn s" href="levels.html?game=shell">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card">
+    <div style="font-size:3.5rem;margin-bottom:10px">💔</div>
+    <div class="lf-title" id="lf-title">Level Failed!</div>
+    <div class="lf-sub" id="lf-sub">Phir se koshish karo!</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div>
+    <div class="lf-btns">
+      <button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button>
+      <a class="lf-btn home" href="levels.html?game=shell">📋 Levels</a>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ===== SHELL GAME LOGIC =====
+
+// Cup SVG shape - nice trapezoid cup
+function cupSVG(color='#2a2a6a'){
+  return `<svg viewBox="0 0 90 110" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="cg${color.replace('#','')}" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" style="stop-color:${color};stop-opacity:.6"/>
+        <stop offset="40%" style="stop-color:${color};stop-opacity:1"/>
+        <stop offset="100%" style="stop-color:${color};stop-opacity:.5"/>
+      </linearGradient>
+      <linearGradient id="shine${color.replace('#','')}" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:#ffffff;stop-opacity:.3"/>
+        <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+      </linearGradient>
+    </defs>
+    <polygon points="5,5 85,5 75,105 15,105" fill="url(#cg${color.replace('#','')})" stroke="rgba(255,255,255,.15)" stroke-width="1.5" rx="4"/>
+    <polygon points="8,8 50,8 46,45 12,45" fill="url(#shine${color.replace('#','')})" opacity=".5"/>
+  </svg>`;
+}
+
+// Difficulty config per level
+function getShellConfig(lv){
+  // swaps: how many swaps, speed: ms per swap, cups: 3 or 4
+  let swaps, speed, cups, fakeSwaps;
+  if(lv<=10){swaps=2;speed=900;cups=3;fakeSwaps=0;}
+  else if(lv<=20){swaps=3;speed=750;cups=3;fakeSwaps=0;}
+  else if(lv<=30){swaps=4;speed=650;cups=3;fakeSwaps=0;}
+  else if(lv<=40){swaps=5;speed=550;cups=3;fakeSwaps=1;}
+  else if(lv<=50){swaps=6;speed=480;cups=3;fakeSwaps=1;}
+  else if(lv<=60){swaps=7;speed=400;cups=4;fakeSwaps=2;}
+  else if(lv<=70){swaps=9;speed=350;cups=4;fakeSwaps=2;}
+  else if(lv<=80){swaps=11;speed=300;cups=4;fakeSwaps=3;}
+  else if(lv<=90){swaps=13;speed=250;cups=4;fakeSwaps=3;}
+  else{swaps=15;speed=200;cups=4;fakeSwaps=4;}
+  return{swaps,speed,cups,fakeSwaps};
+}
+
+// State
+let ballPos=0; // index of cup with ball
+let positions=[0,1,2,3]; // positions[i] = visual x-slot of cup i
+let swapQueue=[];
+let animating=false;
+let canClick=false;
+let currentConfig=null;
+let taskAnswered=false;
+
+// Generate a shuffle sequence
+function genSwaps(n, cups, fakeSwaps){
+  const swaps=[];
+  for(let i=0;i<n;i++){
+    let a=Math.floor(Math.random()*cups);
+    let b;
+    do{b=Math.floor(Math.random()*cups);}while(b===a);
+    swaps.push([a,b]);
+  }
+  // Add some fake-out swaps (same pair swapped back immediately at high levels)
+  for(let i=0;i<fakeSwaps;i++){
+    const ins=Math.floor(Math.random()*(swaps.length-1));
+    const pair=swaps[ins];
+    swaps.splice(ins+1,0,[pair[0],pair[1]]); // same swap again = ball returns
+  }
+  return swaps;
+}
+
+function renderCups(cfg, showBall=false, revealAll=false){
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+
+  const d=getDiff(CG.level);
+  const badge=document.createElement('div');
+  badge.style.cssText='text-align:center;margin-bottom:6px;';
+  badge.innerHTML=`<span class="speed-badge" style="background:rgba(255,255,255,.06);color:${getZoneColor(d.zone)}">
+    ${cfg.cups} Cups · ${cfg.swaps} Swaps · Speed: ${cfg.speed<300?'⚡⚡⚡ EXTREME':cfg.speed<450?'⚡⚡ Fast':cfg.speed<650?'⚡ Medium':'🐢 Slow'}
+  </span>`;
+  qa.appendChild(badge);
+
+  const msg=document.createElement('div');msg.className='shell-msg';msg.id='shell-msg';
+  msg.style.color='var(--c3)';
+  msg.textContent='गेंद देखो! / Watch the ball!';
+  qa.appendChild(msg);
+
+  const area=document.createElement('div');area.className='shell-area';area.style.paddingTop='0';
+
+  const row=document.createElement('div');row.className='cups-row';
+  // Adjust for 4 cups
+  if(cfg.cups===4)row.style.gap='8px';
+
+  for(let i=0;i<cfg.cups;i++){
+    const wrap=document.createElement('div');
+    wrap.className='cup-wrap';wrap.id='cup'+i;
+    if(cfg.cups===4)wrap.style.maxWidth='85px';
+
+    const cup=document.createElement('div');cup.className='cup';
+    const cupColor=['#1a1a6e','#1a3a1a','#3a1a1a','#2a1a3a'][i];
+    cup.innerHTML=cupSVG(cupColor);
+    wrap.appendChild(cup);
+
+    // Ball under this cup?
+    if(i===ballPos){
+      const ball=document.createElement('div');ball.className='ball';ball.id='ball';
+      if(!showBall&&!revealAll)ball.style.opacity='0';
+      wrap.appendChild(ball);
+    }
+
+    const base=document.createElement('div');base.className='cup-base';wrap.appendChild(base);
+
+    if(canClick&&!taskAnswered){
+      wrap.onclick=()=>playerGuess(i,cfg);
+    }
+    row.appendChild(wrap);
+  }
+  area.appendChild(row);
+  qa.appendChild(area);
+
+  // Show next button area placeholder
+  const fbwrap=document.createElement('div');fbwrap.id='fb-wrap';qa.appendChild(fbwrap);
+}
+
+function showBallBriefly(cfg, onDone){
+  // Lift cup with ball to show
+  const cupWrap=document.getElementById('cup'+ballPos);
+  if(cupWrap)cupWrap.classList.add('lift');
+  const ball=document.getElementById('ball');
+  if(ball)ball.style.opacity='1';
+
+  setTimeout(()=>{
+    if(cupWrap)cupWrap.classList.remove('lift');
+    if(ball)ball.style.opacity='0';
+    setTimeout(onDone, 400);
+  }, 1200);
+}
+
+function doSwaps(swaps, idx, cfg, onDone){
+  if(idx>=swaps.length){onDone();return;}
+  const [a,b]=swaps[idx];
+  const wrapA=document.getElementById('cup'+a);
+  const wrapB=document.getElementById('cup'+b);
+  if(!wrapA||!wrapB){onDone();return;}
+
+  // Get current positions
+  const rectA=wrapA.getBoundingClientRect();
+  const rectB=wrapB.getBoundingClientRect();
+  const dx=rectB.left-rectA.left;
+
+  // Animate swap using translateX
+  wrapA.style.transition=`transform ${cfg.speed*.8}ms ease-in-out`;
+  wrapB.style.transition=`transform ${cfg.speed*.8}ms ease-in-out`;
+  wrapA.style.transform=`translateX(${dx}px)`;
+  wrapB.style.transform=`translateX(${-dx}px)`;
+
+  setTimeout(()=>{
+    // Swap DOM positions by swapping flex order
+    wrapA.style.transition='none';wrapB.style.transition='none';
+    wrapA.style.transform='';wrapB.style.transform='';
+
+    // Physically swap in DOM
+    const parent=wrapA.parentNode;
+    const nextA=wrapA.nextSibling;
+    const nextB=wrapB.nextSibling;
+    if(nextA===wrapB){
+      parent.insertBefore(wrapB,wrapA);
+    }else{
+      parent.insertBefore(wrapB,nextA);
+      parent.insertBefore(wrapA,nextB);
+    }
+
+    // Update ballPos
+    if(ballPos===a)ballPos=b;
+    else if(ballPos===b)ballPos=a;
+
+    // Update IDs so cup tracking stays correct
+    wrapA.id='cup'+b; wrapB.id='cup'+a;
+
+    setTimeout(()=>doSwaps(swaps,idx+1,cfg,onDone), cfg.speed*.15);
+  }, cfg.speed*.85);
+}
+
+function loadTask(){
+  taskAnswered=false;canClick=false;animating=true;
+  const cfg=getShellConfig(CG.level);currentConfig=cfg;
+
+  // Random starting ball position
+  ballPos=Math.floor(Math.random()*cfg.cups);
+
+  updSubtitle();
+  document.getElementById('g-combo').textContent='x'+CG.combo;
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;
+  updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  // Render cups (ball hidden)
+  renderCups(cfg, false, false);
+
+  // Phase 1: Show ball
+  const msg=document.getElementById('shell-msg');
+  if(msg){msg.textContent='🎯 गेंद देखो! / Watch the ball!';msg.style.color='var(--c3)';}
+
+  setTimeout(()=>{
+    showBallBriefly(cfg, ()=>{
+      // Phase 2: Shuffle!
+      const msg2=document.getElementById('shell-msg');
+      if(msg2){msg2.textContent='👀 नज़र रखो! / Track it!';msg2.style.color='var(--c2)';}
+
+      const swaps=genSwaps(cfg.swaps, cfg.cups, cfg.fakeSwaps);
+      doSwaps(swaps, 0, cfg, ()=>{
+        // Phase 3: Player guess
+        animating=false;canClick=true;
+        const msg3=document.getElementById('shell-msg');
+        if(msg3){msg3.textContent='❓ गेंद किसमें है? / Which cup?';msg3.style.color='var(--c4)';}
+
+        // Re-attach click handlers now that IDs are stable
+        for(let i=0;i<cfg.cups;i++){
+          const w=document.getElementById('cup'+i);
+          if(w)w.onclick=()=>playerGuess(i,cfg);
+        }
+      });
+    });
+  }, 600);
+}
+
+function playerGuess(cupIdx, cfg){
+  if(!canClick||taskAnswered)return;
+  taskAnswered=true;canClick=false;
+
+  const isCorrect=(cupIdx===ballPos);
+  const cupWrap=document.getElementById('cup'+cupIdx);
+  const ballCupWrap=document.getElementById('cup'+ballPos);
+
+  // Lift guessed cup
+  if(cupWrap){
+    cupWrap.classList.add('lift');
+    // Show ball if it's here
+    if(isCorrect){
+      const ball=cupWrap.querySelector('.ball');
+      if(ball)ball.style.opacity='1';
+      cupWrap.classList.add('correct');
+    }else{
+      cupWrap.classList.add('wrong-cup');
+      // After a moment, reveal where ball actually is
+      setTimeout(()=>{
+        if(ballCupWrap){
+          ballCupWrap.classList.add('lift','correct');
+          const ball=ballCupWrap.querySelector('.ball');
+          if(ball)ball.style.opacity='1';
+        }
+      },400);
+    }
+  }
+
+  const msg=document.getElementById('shell-msg');
+
+  if(isCorrect){
+    if(msg){msg.textContent='✅ Sahi! Zabardast!';msg.style.color='var(--c5)';}
+    CG.combo=Math.min(CG.combo+1,10);
+    const baseScore=Math.ceil(120*(1+getDiff(CG.level).complexity*.3));
+    const pts=baseScore*CG.combo;
+    CG.score+=pts;
+    document.getElementById('g-score').textContent=CG.score;
+    document.getElementById('gt-score').textContent=CG.score;
+    document.getElementById('g-combo').textContent='x'+CG.combo;
+    updTaskDot(CG.task,'done');CG.taskResults[CG.task]=true;
+    burst(window.innerWidth/2,window.innerHeight/2,'#ffd700',20);
+    flash('ok');snd('ok');spop('+'+pts,'#ffd700');
+    const fbwrap=document.getElementById('fb-wrap');
+    if(fbwrap){
+      fbwrap.innerHTML=`<div class="fb ok on" style="display:block">✅ Sahi! +${pts} ${CG.combo>2?'(x'+CG.combo+' Combo!)':''}</div>`;
+      const nb=document.createElement('button');nb.className='next-b on';nb.textContent='NEXT TASK →';nb.onclick=nextTask;fbwrap.appendChild(nb);
+    }
+  }else{
+    if(msg){msg.textContent='❌ Galat! Yahan thi gend!';msg.style.color='var(--c6)';}
+    CG.combo=1;document.getElementById('g-combo').textContent='x1';
+    CG.lives=Math.max(0,CG.lives-1);updLives();
+    updTaskDot(CG.task,'fail');CG.taskResults[CG.task]=false;
+    flash('bad');snd('bad');
+    const fbwrap=document.getElementById('fb-wrap');
+    if(fbwrap){
+      fbwrap.innerHTML=`<div class="fb bad on" style="display:block">❌ Galat! Dhyan se dekho!</div>`;
+      const nb=document.createElement('button');nb.className='next-b on';nb.textContent='NEXT TASK →';nb.onclick=nextTask;fbwrap.appendChild(nb);
+    }
+    if(CG.lives<=0){setTimeout(levelFail,1500);return;}
+  }
+}
+
+function nextTask(){
+  CG.task++;
+  if(CG.task>=10){levelComplete();return;}
+  loadTask();
+}
+
+// Start game
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('shell',level);
+// shell doesn't use pre-generated task array, just loads dynamically
+CG.tasks=Array.from({length:10},()=>({})); // placeholder
+buildTaskDots();
+loadTask();
+</script>
+</body>
+</html>
