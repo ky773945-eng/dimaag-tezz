@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>👆 Tap Puzzle · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.tap-area{padding:10px 14px;max-width:500px;margin:0 auto;}
+.tap-instruction{font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted);text-align:center;padding:8px;margin-bottom:10px;background:var(--card);border-radius:12px;border:1px solid var(--border);}
+.tap-grid{display:grid;gap:8px;margin-bottom:10px;}
+.tap-cell{border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-weight:900;cursor:pointer;transition:all .15s;user-select:none;border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);}
+.tap-cell:active{transform:scale(.93);}
+.tap-cell.active{border-color:var(--c2);background:rgba(0,229,255,.12);color:var(--c2);}
+.tap-cell.correct{background:rgba(0,230,118,.2);border-color:var(--c5);color:var(--c5);animation:cB .3s ease;}
+.tap-cell.wrong{background:rgba(255,23,68,.15);border-color:var(--c6);color:var(--c6);animation:wS .3s ease;}
+.tap-cell.missed{background:rgba(255,107,53,.15);border-color:var(--c1);color:var(--c1);}
+.tap-cell.disabled{opacity:.4;pointer-events:none;}
+.tap-score-row{display:flex;justify-content:center;gap:16px;margin-bottom:8px;}
+.tap-chip{background:var(--card);border:1px solid var(--border);border-radius:50px;padding:6px 16px;font-family:'Orbitron',sans-serif;font-size:.8rem;text-align:center;}
+@keyframes cB{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes wS{0%,100%{transform:translateX(0)}33%{transform:translateX(-5px)}66%{transform:translateX(5px)}}
+.countdown-big{font-family:'Orbitron',sans-serif;font-size:4rem;font-weight:900;text-align:center;color:var(--c3);padding:20px;animation:pulse 1s ease infinite alternate;}
+@keyframes pulse{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.1);opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c2)">👆 TAP PUZZLE</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="tmr-wrap"><div class="tmr-track"><div class="tmr-fill" id="tmr-fill" style="width:100%"></div></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card"><span class="ld-emoji" id="ld-emoji">🏆</span><div class="stars-row" id="ld-stars">⭐⭐⭐</div><div class="ld-title" id="ld-title">Level Complete!</div><div class="ld-stats" id="ld-stats"></div><div class="ld-btns"><button class="ld-btn p" id="ld-next-btn">Next Level →</button><a class="ld-btn s" href="levels.html?game=tappuzzle">📋 Levels</a></div></div>
+</div>
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card"><div style="font-size:3.5rem;margin-bottom:10px">💔</div><div class="lf-title" id="lf-title">Level Failed!</div><div class="lf-sub" id="lf-sub">Phir se koshish karo!</div><div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div><div class="lf-btns"><button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button><a class="lf-btn home" href="levels.html?game=tappuzzle">📋 Levels</a></div></div>
+</div>
+<script src="engine.js"></script>
+<script>
+// TAP PUZZLE GAME
+// Types: 
+// 1. Tap in ORDER (numbers 1,2,3...) 
+// 2. Tap ONLY specific color/shape
+// 3. Tap ALL even/odd numbers
+// 4. Tap sequence shown briefly
+
+function getConfig(lv){
+  if(lv<=15)return{type:'order',grid:3,items:6,time:25};
+  if(lv<=30)return{type:'order',grid:4,items:9,time:22};
+  if(lv<=45)return{type:'color',grid:4,items:12,time:20};
+  if(lv<=60)return{type:'evenodd',grid:4,items:12,time:18};
+  if(lv<=75)return{type:'order',grid:5,items:16,time:15};
+  if(lv<=90)return{type:'sequence',grid:4,items:12,time:12};
+  return{type:'sequence',grid:5,items:16,time:10};
+}
+
+function genTask(lv){
+  const d=getDiff(lv);const cfg=getConfig(lv);
+  if(cfg.type==='order'){
+    // Numbers shown shuffled, tap 1→2→3...
+    const count=cfg.items;
+    const nums=shuffle(Array.from({length:count},(_,i)=>i+1));
+    return{type:'order',nums,target:count,grid:cfg.grid,time:Math.round(cfg.time*d.timeScale)};
+  }
+  if(cfg.type==='color'){
+    // Tap only items of target color
+    const colors=['🔴','🔵','🟡','🟢','🟣','🟠'];
+    const target=colors[rnd(0,3)];
+    const items=[];
+    for(let i=0;i<cfg.items;i++)items.push(colors[rnd(0,colors.length-1)]);
+    const targetCount=items.filter(x=>x===target).length||1;
+    return{type:'color',items,target,targetCount,grid:cfg.grid,time:Math.round(cfg.time*d.timeScale)};
+  }
+  if(cfg.type==='evenodd'){
+    const isEven=rnd(0,1)===0;
+    const nums=shuffle(Array.from({length:cfg.items},(_,i)=>rnd(1,20)));
+    const targets=nums.filter(n=>isEven?(n%2===0):(n%2!==0));
+    return{type:'evenodd',nums,isEven,targets,grid:cfg.grid,time:Math.round(cfg.time*d.timeScale)};
+  }
+  // sequence: show order briefly, then tap in that order
+  const count=Math.min(4+Math.floor(lv/15),8);
+  const positions=shuffle(Array.from({length:cfg.items},(_,i)=>i));
+  const sequence=positions.slice(0,count);
+  return{type:'sequence',sequence,total:cfg.items,grid:cfg.grid,time:Math.round(cfg.time*d.timeScale)};
+}
+
+function genTasks(lv){return Array.from({length:10},()=>genTask(lv));}
+
+let tapState={};
+
+function loadTask(){
+  clearTmr();CG.answered=false;tapState={};
+  const task=CG.tasks[CG.task];
+  updSubtitle();document.getElementById('g-combo').textContent='x'+CG.combo;
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+
+  if(task.type==='order')renderOrder(task,qa);
+  else if(task.type==='color')renderColor(task,qa);
+  else if(task.type==='evenodd')renderEvenOdd(task,qa);
+  else if(task.type==='sequence')renderSequence(task,qa);
+}
+
+function renderOrder(task,qa){
+  const area=document.createElement('div');area.className='tap-area';
+  const ins=document.createElement('div');ins.className='tap-instruction';
+  ins.innerHTML='1 से शुरू करके क्रम से tap करो! / Tap in ORDER 1→2→3...';area.appendChild(ins);
+  const grid=document.createElement('div');grid.className='tap-grid';
+  grid.style.gridTemplateColumns=`repeat(${task.grid},1fr)`;
+  const cellH=Math.min(75,Math.floor((window.innerHeight-320)/Math.ceil(task.nums.length/task.grid)));
+  tapState={next:1,correct:0,total:task.target};
+  task.nums.forEach((num,idx)=>{
+    const cell=document.createElement('div');cell.className='tap-cell';
+    cell.style.height=cellH+'px';cell.style.fontSize=Math.min(1.4,cellH/45)+'rem';
+    cell.textContent=num;cell.id='tc'+idx;
+    cell.onclick=()=>{
+      if(CG.answered)return;
+      if(num===tapState.next){
+        cell.className='tap-cell correct';cell.style.pointerEvents='none';
+        tapState.next++;tapState.correct++;
+        snd('ok');burst(cell.getBoundingClientRect().left+30,cell.getBoundingClientRect().top+30,'#00e676',8);
+        if(tapState.correct===tapState.total)taskDone(true,task);
+      }else{
+        cell.className='tap-cell wrong';
+        setTimeout(()=>cell.className='tap-cell',400);
+        snd('bad');flash('bad');
+        // Penalty: -1 life? No, just visual feedback
+      }
+    };
+    grid.appendChild(cell);
+  });
+  area.appendChild(grid);qa.appendChild(area);
+  startTmr(task.time,()=>{if(!CG.answered)taskDone(false,task);});
+}
+
+function renderColor(task,qa){
+  const area=document.createElement('div');area.className='tap-area';
+  const ins=document.createElement('div');ins.className='tap-instruction';
+  ins.innerHTML=`सिर्फ <strong style="font-size:1.4rem">${task.target}</strong> tap करो! / Tap only ${task.target}`;area.appendChild(ins);
+  const scoreRow=document.createElement('div');scoreRow.className='tap-score-row';
+  scoreRow.innerHTML=`<div class="tap-chip" style="color:var(--c5)">✅ <span id="tap-correct">0</span>/${task.targetCount}</div><div class="tap-chip" style="color:var(--c6)">❌ <span id="tap-wrong">0</span></div>`;
+  area.appendChild(scoreRow);
+  const grid=document.createElement('div');grid.className='tap-grid';
+  grid.style.gridTemplateColumns=`repeat(${task.grid},1fr)`;
+  const cellH=Math.min(65,Math.floor((window.innerHeight-360)/Math.ceil(task.items.length/task.grid)));
+  tapState={correctTapped:0,wrongTapped:0,total:task.targetCount};
+  task.items.forEach((item,idx)=>{
+    const cell=document.createElement('div');cell.className='tap-cell';
+    cell.style.height=cellH+'px';cell.style.fontSize='1.6rem';
+    cell.textContent=item;cell.id='cc'+idx;
+    cell.onclick=()=>{
+      if(CG.answered||cell.classList.contains('correct')||cell.classList.contains('wrong'))return;
+      if(item===task.target){
+        cell.className='tap-cell correct';cell.style.pointerEvents='none';
+        tapState.correctTapped++;
+        document.getElementById('tap-correct').textContent=tapState.correctTapped;
+        snd('ok');burst(cell.getBoundingClientRect().left+25,cell.getBoundingClientRect().top+25,'#00e676',6);
+        if(tapState.correctTapped===tapState.total)taskDone(true,task);
+      }else{
+        cell.className='tap-cell wrong';cell.style.pointerEvents='none';
+        tapState.wrongTapped++;
+        document.getElementById('tap-wrong').textContent=tapState.wrongTapped;
+        snd('bad');flash('bad');
+        if(tapState.wrongTapped>=3)taskDone(false,task);
+      }
+    };
+    grid.appendChild(cell);
+  });
+  area.appendChild(grid);qa.appendChild(area);
+  startTmr(task.time,()=>{if(!CG.answered)taskDone(tapState.correctTapped===tapState.total,task);});
+}
+
+function renderEvenOdd(task,qa){
+  const area=document.createElement('div');area.className='tap-area';
+  const ins=document.createElement('div');ins.className='tap-instruction';
+  ins.innerHTML=`सिर्फ <strong style="color:var(--c3)">${task.isEven?'सम (EVEN)':'विषम (ODD)'}</strong> नंबर tap करो!`;area.appendChild(ins);
+  const scoreRow=document.createElement('div');scoreRow.className='tap-score-row';
+  scoreRow.innerHTML=`<div class="tap-chip" style="color:var(--c5)">✅ <span id="tap-correct">0</span>/${task.targets.length}</div>`;
+  area.appendChild(scoreRow);
+  const grid=document.createElement('div');grid.className='tap-grid';
+  grid.style.gridTemplateColumns=`repeat(${task.grid},1fr)`;
+  const cellH=Math.min(65,Math.floor((window.innerHeight-360)/Math.ceil(task.nums.length/task.grid)));
+  tapState={correct:0,wrong:0,total:task.targets.length};
+  task.nums.forEach((num,idx)=>{
+    const isTarget=task.isEven?(num%2===0):(num%2!==0);
+    const cell=document.createElement('div');cell.className='tap-cell';
+    cell.style.height=cellH+'px';cell.style.fontSize='1.1rem';
+    cell.textContent=num;
+    cell.onclick=()=>{
+      if(CG.answered||cell.classList.contains('correct')||cell.classList.contains('wrong'))return;
+      if(isTarget){
+        cell.className='tap-cell correct';cell.style.pointerEvents='none';
+        tapState.correct++;
+        document.getElementById('tap-correct').textContent=tapState.correct;
+        snd('ok');
+        if(tapState.correct===tapState.total)taskDone(true,task);
+      }else{
+        cell.className='tap-cell wrong';cell.style.pointerEvents='none';
+        tapState.wrong++;snd('bad');flash('bad');
+        if(tapState.wrong>=3)taskDone(false,task);
+      }
+    };
+    grid.appendChild(cell);
+  });
+  area.appendChild(grid);qa.appendChild(area);
+  startTmr(task.time,()=>{if(!CG.answered)taskDone(tapState.correct>=tapState.total*.7,task);});
+}
+
+function renderSequence(task,qa){
+  // Phase 1: Show sequence briefly
+  const area=document.createElement('div');area.className='tap-area';
+  const ins=document.createElement('div');ins.className='tap-instruction';
+  ins.innerHTML='क्रम याद करो! / Remember the sequence!';ins.id='seq-ins';area.appendChild(ins);
+  const grid=document.createElement('div');grid.className='tap-grid';
+  grid.style.gridTemplateColumns=`repeat(${task.grid},1fr)`;
+  const cellH=Math.min(65,Math.floor((window.innerHeight-320)/Math.ceil(task.total/task.grid)));
+  const cells=[];
+  for(let i=0;i<task.total;i++){
+    const cell=document.createElement('div');cell.className='tap-cell disabled';
+    cell.style.height=cellH+'px';cell.style.fontSize='.85rem';
+    cell.id='sc'+i;cell.textContent='•';
+    cells.push(cell);grid.appendChild(cell);
+  }
+  area.appendChild(grid);qa.appendChild(area);
+
+  // Show sequence one by one
+  tapState={step:0,sequence:task.sequence,correct:0};
+  let si=0;
+  function showNext(){
+    if(si>0){cells[task.sequence[si-1]].className='tap-cell disabled';cells[task.sequence[si-1]].textContent='•';}
+    if(si>=task.sequence.length){
+      // Now player's turn
+      const ins2=document.getElementById('seq-ins');
+      if(ins2)ins2.innerHTML='अब उसी क्रम में tap करो! / Now tap in same order!';
+      cells.forEach((c,i)=>{
+        c.className='tap-cell';c.textContent=(i+1);
+        c.onclick=()=>seqTap(i,task,cells);
+      });
+      startTmr(task.time,()=>{if(!CG.answered)taskDone(false,task);});
+      return;
+    }
+    const idx=task.sequence[si];
+    cells[idx].className='tap-cell active';cells[idx].textContent=si+1;
+    si++;setTimeout(showNext,600);
+  }
+  setTimeout(showNext,500);
+}
+
+function seqTap(idx,task,cells){
+  if(CG.answered)return;
+  if(idx===task.sequence[tapState.step]){
+    cells[idx].className='tap-cell correct';cells[idx].style.pointerEvents='none';
+    snd('ok');tapState.step++;tapState.correct++;
+    if(tapState.step===task.sequence.length)taskDone(true,task);
+  }else{
+    cells[idx].className='tap-cell wrong';
+    // Show correct
+    task.sequence.slice(tapState.step).forEach(si=>{cells[si].className='tap-cell missed';});
+    snd('bad');flash('bad');
+    setTimeout(()=>taskDone(false,task),600);
+  }
+}
+
+function taskDone(ok,task){
+  if(CG.answered)return;
+  CG.answered=true;clearTmr();
+  if(ok){
+    CG.combo=Math.min(CG.combo+1,10);
+    const pts=Math.ceil(120*(1+getDiff(CG.level).complexity*.3))*CG.combo;
+    CG.score+=pts;document.getElementById('g-score').textContent=CG.score;
+    document.getElementById('gt-score').textContent=CG.score;
+    document.getElementById('g-combo').textContent='x'+CG.combo;
+    updTaskDot(CG.task,'done');CG.taskResults[CG.task]=true;
+    burst(window.innerWidth/2,window.innerHeight/2,'#00e676',20);flash('ok');snd('ok');spop('+'+pts,'#00e676');
+  }else{
+    CG.combo=1;document.getElementById('g-combo').textContent='x1';
+    CG.lives=Math.max(0,CG.lives-1);updLives();
+    updTaskDot(CG.task,'fail');CG.taskResults[CG.task]=false;
+    flash('bad');
+    if(CG.lives<=0){setTimeout(levelFail,1000);return;}
+  }
+  // Show next button
+  const qa=document.getElementById('q-area');
+  const fb=document.createElement('div');fb.className='fb '+(ok?'ok':'bad')+' on';
+  fb.innerHTML=ok?`✅ Sahi! Combo x${CG.combo}`:'❌ Galat! Dhyan se karo!';
+  fb.style.display='block';fb.style.margin='10px 14px 0';qa.appendChild(fb);
+  const nb=document.createElement('button');nb.className='next-b on';nb.style.margin='8px 14px';nb.style.width='calc(100% - 28px)';
+  nb.textContent='NEXT TASK →';nb.onclick=nextTask;qa.appendChild(nb);
+}
+
+function nextTask(){CG.task++;if(CG.task>=10){levelComplete();return;}loadTask();}
+
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('tappuzzle',level);
+CG.tasks=genTasks(level);buildTaskDots();loadTask();
+</script>
+</body>
+</html>

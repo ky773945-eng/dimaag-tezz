@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🔢 Count & Remember · दिमाग तेज़ करो</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Baloo+2:wght@400;600;800&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.show-area{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:45vh;padding:10px 16px;}
+.show-number{font-family:'Orbitron',sans-serif;font-weight:900;text-align:center;background:var(--card);border-radius:24px;border:2px solid var(--border);padding:30px 20px;margin-bottom:14px;width:100%;max-width:400px;line-height:1.1;word-break:break-all;letter-spacing:4px;}
+.show-countdown{font-family:'Orbitron',sans-serif;font-size:1rem;color:var(--muted);text-align:center;margin-bottom:8px;}
+.count-bar{width:100%;max-width:400px;height:8px;background:rgba(255,255,255,.06);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+.count-fill{height:100%;background:linear-gradient(90deg,var(--c2),var(--c1));border-radius:8px;transition:width .1s linear;}
+.type-area{padding:0 14px;max-width:400px;margin:0 auto;width:100%;}
+.type-lbl{font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted);text-align:center;margin-bottom:10px;}
+.ans-inp{width:100%;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:14px;padding:16px;font-family:'Orbitron',sans-serif;font-size:1.8rem;color:var(--text);text-align:center;letter-spacing:4px;margin-bottom:10px;}
+.ans-inp:focus{outline:none;border-color:var(--c2);}
+.ans-inp.correct{border-color:var(--c5);color:var(--c5);}
+.ans-inp.wrong{border-color:var(--c6);color:var(--c6);}
+.num-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px;margin:0 auto 10px;}
+.num-key{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:700;color:var(--text);cursor:pointer;transition:all .15s;text-align:center;}
+.num-key:active{transform:scale(.93);background:rgba(0,229,255,.12);}
+.num-key.del{background:rgba(255,23,68,.1);border-color:rgba(255,23,68,.2);color:var(--c6);}
+.num-key.sub{background:linear-gradient(135deg,var(--c2),#0091ea);border:none;color:#000;font-weight:900;}
+.phase-label{font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:2px;color:var(--c3);text-align:center;margin-bottom:6px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas><canvas id="fxc"></canvas>
+<div class="flash" id="fl"></div>
+<div class="app">
+  <div class="game-top">
+    <button class="back-btn" onclick="confirmQuit()">✕</button>
+    <div class="game-top-center">
+      <div class="game-top-title" style="color:var(--c3)">🔢 COUNT & REMEMBER</div>
+      <div class="game-top-sub" id="gt-sub">Level 1 · Task 1/10</div>
+    </div>
+    <div class="game-top-score" id="gt-score">0</div>
+  </div>
+  <div class="hud">
+    <div class="hp"><div class="hp-val" style="color:var(--c1)" id="g-score">0</div><div class="hp-lbl">Score</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c2)" id="g-task">1/10</div><div class="hp-lbl">Task</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c3)" id="g-combo">x1</div><div class="hp-lbl">Combo</div></div>
+    <div class="hp"><div class="hp-val" style="color:var(--c5)" id="g-lives">❤️❤️❤️</div><div class="hp-lbl">Lives</div></div>
+  </div>
+  <div class="task-prog"><div class="task-dots" id="task-dots"></div></div>
+  <div class="q-area" id="q-area"></div>
+</div>
+<div class="overlay-screen" id="s-lvl-done">
+  <div class="ld-card"><span class="ld-emoji" id="ld-emoji">🏆</span><div class="stars-row" id="ld-stars">⭐⭐⭐</div><div class="ld-title" id="ld-title">Level Complete!</div><div class="ld-stats" id="ld-stats"></div><div class="ld-btns"><button class="ld-btn p" id="ld-next-btn">Next Level →</button><a class="ld-btn s" href="levels.html?game=countmem">📋 Levels</a></div></div>
+</div>
+<div class="overlay-screen" id="s-lvl-fail">
+  <div class="lf-card"><div style="font-size:3.5rem;margin-bottom:10px">💔</div><div class="lf-title" id="lf-title">Level Failed!</div><div class="lf-sub" id="lf-sub">Phir se koshish karo!</div><div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;margin:14px 0;font-family:'Rajdhani',sans-serif;font-size:.9rem;color:var(--muted)" id="lf-stats"></div><div class="lf-btns"><button class="lf-btn retry" onclick="retryLevel()">🔄 Retry Level</button><a class="lf-btn home" href="levels.html?game=countmem">📋 Levels</a></div></div>
+</div>
+<script src="engine.js"></script>
+<script>
+// COUNT & REMEMBER
+// Show a number/set of numbers for a few seconds → hide → user types what they saw
+
+function getShowTime(lv){
+  // milliseconds to show number
+  if(lv<=10)return 3000;
+  if(lv<=20)return 2500;
+  if(lv<=30)return 2000;
+  if(lv<=40)return 1800;
+  if(lv<=50)return 1500;
+  if(lv<=60)return 1200;
+  if(lv<=70)return 1000;
+  if(lv<=80)return 800;
+  if(lv<=90)return 600;
+  return 500;
+}
+
+function genTask(lv){
+  const d=getDiff(lv);
+  const digits=Math.min(2+Math.floor(lv/10),10);
+  const showMs=getShowTime(lv);
+
+  // Different modes based on level
+  let mode,target,display,question;
+  if(lv<=25){
+    // Simple: show a number, type it back
+    mode='number';
+    target=String(rnd(10**(digits-1),10**digits-1));
+    display=target;
+    question='यह नंबर याद करो! / Remember this number!';
+  }else if(lv<=50){
+    // Show dots/emojis, count them
+    mode='count';
+    const emoji=['🔴','🔵','🟡','⭐','🎯'][rnd(0,4)];
+    const count=rnd(5,20+Math.floor(lv/5));
+    const arr=[];for(let i=0;i<count;i++)arr.push(emoji);
+    display=shuffle(arr).join(' ');
+    target=String(count);
+    question=`${emoji} कितने हैं? / How many ${emoji}?`;
+  }else if(lv<=75){
+    // Show multiple numbers briefly, sum them
+    mode='sum';
+    const count=Math.min(2+Math.floor((lv-50)/10),5);
+    const nums=Array.from({length:count},()=>rnd(1,Math.min(lv*2,99)));
+    display=nums.join('  +  ');
+    target=String(nums.reduce((a,b)=>a+b,0));
+    question='इन्हें जोड़ो! / Add them up!';
+  }else{
+    // Show mixed symbols, count specific one
+    mode='specific';
+    const symbols=['🔴','🔵','🟡','🟢','🟣'];
+    const targetSym=symbols[rnd(0,4)];
+    const targetCount=rnd(3,12);
+    const otherCount=rnd(5,15);
+    const arr=[];
+    for(let i=0;i<targetCount;i++)arr.push(targetSym);
+    for(let i=0;i<otherCount;i++)arr.push(symbols.filter(s=>s!==targetSym)[rnd(0,3)]);
+    display=shuffle(arr).join('');
+    target=String(targetCount);
+    question=`${targetSym} कितने हैं? / Count the ${targetSym}`;
+  }
+
+  return{mode,display,target,question,showMs,digits};
+}
+
+function genTasks(lv){return Array.from({length:10},()=>genTask(lv));}
+
+let showInterval=null;
+let typedAns='';
+
+function loadTask(){
+  clearTmr();CG.answered=false;typedAns='';
+  if(showInterval)clearInterval(showInterval);
+  const task=CG.tasks[CG.task];
+  updSubtitle();document.getElementById('g-combo').textContent='x'+CG.combo;
+  document.getElementById('g-task').textContent=`${CG.task+1}/10`;updLives();
+  for(let i=0;i<10;i++){if(!CG.taskResults[i])document.getElementById('td'+i).className='tdot'+(i===CG.task?' cur':'');}
+
+  // Phase 1: SHOW
+  const qa=document.getElementById('q-area');qa.innerHTML='';
+  renderShowPhase(task,qa);
+}
+
+function renderShowPhase(task,qa){
+  const area=document.createElement('div');area.className='show-area';
+  const phaseLbl=document.createElement('div');phaseLbl.className='phase-label';phaseLbl.textContent='👁️ देखो / WATCH';area.appendChild(phaseLbl);
+
+  const qText=document.createElement('div');
+  qText.style.cssText='font-family:"Rajdhani",sans-serif;font-size:.9rem;color:var(--muted);text-align:center;margin-bottom:10px;';
+  qText.textContent=task.question;area.appendChild(qText);
+
+  const showNum=document.createElement('div');showNum.className='show-number';
+  const fontSize=task.mode==='number'?
+    Math.min(3.5,12/task.display.length)+'rem':
+    task.mode==='count'||task.mode==='specific'?'1.2rem':'2rem';
+  showNum.style.fontSize=fontSize;
+  showNum.textContent=task.display;area.appendChild(showNum);
+
+  // Countdown bar
+  const barWrap=document.createElement('div');barWrap.className='count-bar';
+  const barFill=document.createElement('div');barFill.className='count-fill';barFill.style.width='100%';
+  barWrap.appendChild(barFill);area.appendChild(barWrap);
+
+  const cdLabel=document.createElement('div');cdLabel.className='show-countdown';
+  cdLabel.id='cd-label';cdLabel.textContent=Math.ceil(task.showMs/1000)+'s';area.appendChild(cdLabel);
+
+  qa.appendChild(area);
+
+  // Animate countdown
+  const startTime=Date.now();
+  showInterval=setInterval(()=>{
+    const elapsed=Date.now()-startTime;
+    const pct=Math.max(0,100-(elapsed/task.showMs)*100);
+    barFill.style.width=pct+'%';
+    const remaining=Math.max(0,Math.ceil((task.showMs-elapsed)/1000));
+    cdLabel.textContent=remaining+'s';
+    if(elapsed>=task.showMs){clearInterval(showInterval);renderTypePhase(task,qa);}
+  },50);
+}
+
+function renderTypePhase(task,qa){
+  qa.innerHTML='';typedAns='';
+  const phaseLbl=document.createElement('div');
+  phaseLbl.className='phase-label';phaseLbl.style.margin='10px 14px 6px';
+  phaseLbl.textContent='✏️ type करो / ANSWER';qa.appendChild(phaseLbl);
+
+  const qText=document.createElement('div');
+  qText.style.cssText='font-family:"Rajdhani",sans-serif;font-size:.9rem;color:var(--muted);text-align:center;margin-bottom:8px;';
+  qText.textContent=task.question;qa.appendChild(qText);
+
+  const typeArea=document.createElement('div');typeArea.className='type-area';
+
+  const inp=document.createElement('input');inp.className='ans-inp';inp.type='number';
+  inp.placeholder='?';inp.id='ans-inp';inp.inputmode='numeric';inp.pattern='[0-9]*';
+  inp.maxLength=task.target.length+1;
+  typeArea.appendChild(inp);
+
+  // Number pad
+  const pad=document.createElement('div');pad.className='num-pad';
+  const keys=['1','2','3','4','5','6','7','8','9','⌫','0','✓'];
+  keys.forEach(k=>{
+    const btn=document.createElement('button');btn.className='num-key '+(k==='⌫'?'del':k==='✓'?'sub':'');
+    btn.textContent=k;
+    btn.onclick=()=>{
+      if(CG.answered)return;
+      if(k==='⌫'){typedAns=typedAns.slice(0,-1);}
+      else if(k==='✓'){submitAnswer(task,inp);}
+      else if(typedAns.length<8){typedAns+=k;}
+      inp.value=typedAns;
+    };
+    pad.appendChild(btn);
+  });
+  typeArea.appendChild(pad);
+  qa.appendChild(typeArea);
+  qa.appendChild(buildFbNext(nextTask));
+
+  // Allow keyboard too
+  inp.onkeypress=(e)=>{if(e.key==='Enter')submitAnswer(task,inp);};
+  inp.oninput=()=>{typedAns=inp.value;};
+
+  startTmr(Math.round(15*(getDiff(CG.level).timeScale)),()=>timeUp(task.target,nextTask));
+  setTimeout(()=>inp.focus(),100);
+}
+
+function submitAnswer(task,inp){
+  if(CG.answered)return;
+  const ok=typedAns.trim()===task.target.trim();
+  inp.className='ans-inp '+(ok?'correct':'wrong');
+  inp.disabled=true;
+  document.querySelectorAll('.num-key').forEach(b=>b.disabled=true);
+  checkAnswer(ok,null,task.target,null,nextTask);
+}
+
+function nextTask(){CG.task++;if(CG.task>=10){levelComplete();return;}loadTask();}
+
+const level=parseInt(getQueryParam('level'))||1;
+initGameState('countmem',level);
+CG.tasks=genTasks(level);buildTaskDots();loadTask();
+</script>
+</body>
+</html>
